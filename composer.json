@@ -1,5 +1,5 @@
 {
-    "name": "tmudryi/yii2-json-rpc-2.0",
+    "name": "cranetm/yii2-json-rpc-2.0",
     "description": "JSON RPC 2.0 for Yii2",
     "license": "GNU",
     "authors": [
@@ -15,6 +15,6 @@
 		},
     "autoload": 
 		{
-			"psr-0": { "cranetm": "src/" }
+			"psr-0": { "JsonRpc2": "/" }
 		}
 }

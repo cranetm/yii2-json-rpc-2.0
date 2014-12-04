@@ -1,5 +1,5 @@
 <?php
-namespace cranetm\JsonRpc2;
+namespace JsonRpc2;
 
 class Exception extends \yii\base\Exception
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace cranetm\JsonRpc2;
+namespace JsonRpc2;
 
 use Yii;
 use yii\base\InlineAction;
