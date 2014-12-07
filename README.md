@@ -187,7 +187,6 @@ class Combined extends Dto {
 
 <br/>
 <br/>
-<br/>
-#####If you have some issue with functionality do not shame to register it here.
+#####If you have a problem with functionality not be afraid to to register it here.
 
 #####Thanks.
