@@ -51,7 +51,7 @@ class Controller extends \yii\web\Controller
 
         $response = new Response();
         $response->format = Response::FORMAT_JSON;
-        if (!isset($this->requestObject['id']))
+        if (!isset($this->requestObject['id']) && empty($error))
             return $response;
 
         $response->data = [
@@ -79,7 +79,7 @@ class Controller extends \yii\web\Controller
      * method will be created and returned.
      * @param string $id the action ID.
      * @throws Exception
-     * @return Action the newly created action instance. Null if the ID doesn't resolve into any action.
+     * @return \yii\base\Action the newly created action instance. Null if the ID doesn't resolve into any action.
      */
     public function createAction($id)
     {
@@ -88,13 +88,14 @@ class Controller extends \yii\web\Controller
             throw new Exception("Method not found", Exception::METHOD_NOT_FOUND);
 
         $this->prepareActionParams($action);
+
         return $action;
     }
 
     /**
      * Binds the parameters to the action.
      * This method is invoked by [[Action]] when it begins to run with the given parameters.
-     * @param Action $action the action to be bound with parameters.
+     * @param \yii\base\Action $action the action to be bound with parameters.
      * @param array $params the parameters to be bound to the action.
      * @throws Exception if params are invalid
      * @return array the valid parameters that the action can run with.
@@ -102,7 +103,50 @@ class Controller extends \yii\web\Controller
     public function bindActionParams($action, $params)
     {
         try {
-            return parent::bindActionParams($action, $this->requestObject['params']);
+            $this->validateActionParams($action);
+            $params = $this->requestObject['params'];
+
+            //code from parent
+            if ($action instanceof InlineAction) {
+                $method = new \ReflectionMethod($this, $action->actionMethod);
+            } else {
+                $method = new \ReflectionMethod($action, 'run');
+            }
+
+            $args = [];
+            $missing = [];
+            $actionParams = [];
+            $paramsTypes = $this->getMethodParamsTypes($method);//changes for array types documented as square brackets
+
+            foreach ($method->getParameters() as $param) {
+                $name = $param->getName();
+                if (array_key_exists($name, $params)) {
+                    if ($param->isArray() || isset($paramsTypes[$name]) && strpos($paramsTypes[$name], "[]") !== false) { //changes for array types documented as square brackets
+                        $args[] = $actionParams[$name] = is_array($params[$name]) ? $params[$name] : [$params[$name]];
+                    } elseif (!is_array($params[$name])) {
+                        $args[] = $actionParams[$name] = $params[$name];
+                    } else {
+                        throw new BadRequestHttpException(Yii::t('yii', 'Invalid data received for parameter "{param}".', [
+                            'param' => $name,
+                        ]));
+                    }
+                    unset($params[$name]);
+                } elseif ($param->isDefaultValueAvailable()) {
+                    $args[] = $actionParams[$name] = $param->getDefaultValue();
+                } else {
+                    $missing[] = $name;
+                }
+            }
+
+            if (!empty($missing)) {
+                throw new BadRequestHttpException(Yii::t('yii', 'Missing required parameters: {params}', [
+                    'params' => implode(', ', $missing),
+                ]));
+            }
+
+            $this->actionParams = $actionParams;
+
+            return $args;
         } catch (BadRequestHttpException $e) {
             throw new Exception("Invalid Params", Exception::INVALID_PARAMS);
         }
@@ -144,11 +188,7 @@ class Controller extends \yii\web\Controller
      */
     private function prepareActionParams($action)
     {
-        if ($action instanceof InlineAction) {
-            $method = new \ReflectionMethod($this, $action->actionMethod);
-        } else {
-            $method = new \ReflectionMethod($action, 'run');
-        }
+        $method = $this->getMethodFromAction($action);
         $methodParams = [];
 
         foreach ($method->getParameters() as $param) {
@@ -162,5 +202,96 @@ class Controller extends \yii\web\Controller
                 $additionalParamsNumber ? array_merge($this->requestObject['params'], array_fill(0, $additionalParamsNumber, null)) : $this->requestObject['params']
             );
         }
+    }
+
+    /**
+     * @param $action
+     * @throws Exception
+     */
+    private function validateActionParams($action)
+    {
+        $method = $this->getMethodFromAction($action);
+        $paramsTypes = $this->getMethodParamsTypes($method);
+
+        foreach ($this->requestObject['params'] as $name=>$value) {
+            if (!isset($paramsTypes[$name])) continue;
+            $type = $paramsTypes[$name];
+
+            $this->requestObject['params'][$name] = $this->bringValueToType($type, $value);
+        }
+    }
+
+    /**
+     * @param $action
+     * @return \ReflectionMethod
+     */
+    private function getMethodFromAction($action)
+    {
+        if ($action instanceof InlineAction) {
+            $method = new \ReflectionMethod($this, $action->actionMethod);
+            return $method;
+        } else {
+            $method = new \ReflectionMethod($action, 'run');
+            return $method;
+        }
+    }
+
+    /**
+     * @param $type
+     * @param $value
+     * @return mixed
+     * @throws Exception
+     */
+    private function bringValueToType($type, $value)
+    {
+        $typeParts = explode("[]", $type);
+        $type = current($typeParts);
+        if (count($typeParts) > 2)
+            throw new Exception("Type '$type' is invalid", Exception::INTERNAL_ERROR);
+
+        if (count($typeParts) === 2) {
+            if (!is_array($value))
+                throw new Exception("Invalid Params", Exception::INVALID_PARAMS);
+
+            foreach ($value as $key=>$childValue) {
+                $value[$key] = $this->bringValueToType($type, $childValue);
+            }
+            return $value;
+        }
+
+        if (class_exists($type)) {
+            if (!is_subclass_of($type, '\\JsonRpc2\\Dto'))
+                throw new Exception("Class '$type' MUST be instance of '\\JsonRpc2\\Dto'", Exception::INTERNAL_ERROR);
+            return new $type($value);
+        } else {
+            switch ($type) {
+                case "string":
+                    return (string)$value;
+                    break;
+                case "int":
+                    return (int)$value;
+                    break;
+                case "float":
+                    return (float)$value;
+                    break;
+                case "array":
+                    throw new Exception("Parameter type 'array' is deprecated. Use square brackets with simply types or DTO based classes instead.", Exception::INTERNAL_ERROR);
+                case "bool":
+                    return (bool)$value;
+                    break;
+            }
+        }
+    }
+
+    /**
+     * @param $method \ReflectionMethod
+     * @return array
+     */
+    private function getMethodParamsTypes($method)
+    {
+        $variable = '\$([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)';
+        preg_match_all("/@param $variable ([\w\\\\\[\]]+)/", $method->getDocComment(), $matches);
+        $paramsTypes = array_combine($matches[1], $matches[2]);
+        return $paramsTypes;
     }
 }
