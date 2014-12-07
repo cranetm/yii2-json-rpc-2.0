@@ -1,4 +1,4 @@
-##JSON-RPC 2.0 for Yii2 with input data validation
+##JSON-RPC 2.0 for Yii2 with params data validation
 Easiest way to use in 4 steps:<br/>
 
 1. Install via composer
@@ -52,9 +52,9 @@ Easiest way to use in 4 steps:<br/>
 
 <br/>
 
-###Input data validation
-For validation input data you have to create [phpDoc](http://manual.phpdoc.org/) comments to action method where you document a function parameters.
-After that input data will be converted to documented type.
+###Params data validation
+For validation params data you have to create [phpDoc](http://manual.phpdoc.org/) comments to action method where you document a function parameters.
+After that param data will be converted to documented type.
 
 #####Example 1 (parsing params from array OR from object and validate them )
 In JSON-RPC params for method can received to server as array or as object, where keys are params names and values are params values.
@@ -158,7 +158,7 @@ So, response will be:
 
 #####Example 4 (array type)
 For better validation 'array' is deprecated as a variable OR parameter type and you MUST use square brackets with one of simply types or DTOs.<br/>
-You can use this arrays in actions OR in DTOs and all input data will be validated recursively.
+You can use this arrays in actions OR in DTOs and all params data will be validated recursively.
 
 **'Update'** Action:
 ~~~php
