@@ -1,6 +1,7 @@
 {
     "name": "cranetm/yii2-json-rpc-2.0",
-    "description": "JSON RPC 2.0 for Yii2",
+    "description": "JSON RPC 2.0 for Yii2 with params validation",
+    "keywords": ["yii", "yii2", "json", "rpc", "rpc2", "jsonrpc", "json-rpc", "jsonrpc2", "json-rpc2", "json-rpc-2.0"],
     "license": "GNU",
     "authors": [
         {
