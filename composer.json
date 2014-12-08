@@ -1,6 +1,6 @@
 {
     "name": "cranetm/yii2-json-rpc-2.0",
-    "description": "JSON RPC 2.0 for Yii2 with params validation",
+    "description": "JSON RPC 2.0 for Yii2 strict type validation of request and response data",
     "keywords": ["yii", "yii2", "json", "rpc", "rpc2", "jsonrpc", "json-rpc", "jsonrpc2", "json-rpc2", "json-rpc-2.0"],
     "license": "GNU",
     "authors": [
@@ -12,7 +12,8 @@
     "minimum-stability": "stable",
     "require": 
 		{
-			"php": ">=5.4.0"
+			"php": ">=5.4.0",
+            "yiisoft/yii2": "*"
 		},
     "autoload": 
 		{

@@ -14,6 +14,12 @@ class Controller extends \yii\web\Controller
 {
     public $enableCsrfValidation = false;
 
+    /** @var array Stores information about param's types and method's return type */
+    private $methodInfo = [
+        'params' => [],
+        'return' => []
+    ];
+
     /** @var array Contains parsed JSON-RPC 2.0 request object*/
     private $requestObject;
 
@@ -39,8 +45,9 @@ class Controller extends \yii\web\Controller
             $this->initRequest($id);
             $this->parseAndValidateRequestObject();
             ob_start();
-            $result = parent::runAction($this->requestObject['method']);
+            $dirtyResult = parent::runAction($this->requestObject['method']);
             ob_clean();
+            $result = $this->validateResult($dirtyResult);
         } catch (HttpException $e) {
             throw $e;
         } catch (Exception $e) {
@@ -58,14 +65,12 @@ class Controller extends \yii\web\Controller
             'jsonrpc' => '2.0',
             'id' => !empty($this->requestObject['id'])? $this->requestObject['id'] : null,
         ];
-        if (!empty($result))
-            $response->data['result'] = $result;
 
         if (!empty($error))
             $response->data['error'] = $error->toArray();
 
-        if (empty($result) && empty($error))
-            $response->data['result'] = $this->defaultResult;
+        if (!empty($result) || is_array($result))
+            $response->data['result'] = $result;
 
         return $response;
     }
@@ -103,8 +108,6 @@ class Controller extends \yii\web\Controller
     public function bindActionParams($action, $params)
     {
         try {
-            $this->validateActionParams($action);
-            $params = $this->requestObject['params'];
 
             //code from parent
             if ($action instanceof InlineAction) {
@@ -113,10 +116,14 @@ class Controller extends \yii\web\Controller
                 $method = new \ReflectionMethod($action, 'run');
             }
 
+            $this->parseMethodDocComment($method);
+            $this->validateActionParams();
+            $params = $this->requestObject['params'];
+
             $args = [];
             $missing = [];
             $actionParams = [];
-            $paramsTypes = $this->getMethodParamsTypes($method);//changes for array types documented as square brackets
+            $paramsTypes = $this->getMethodParamsTypes();//changes for array types documented as square brackets
 
             foreach ($method->getParameters() as $param) {
                 $name = $param->getName();
@@ -205,23 +212,26 @@ class Controller extends \yii\web\Controller
     }
 
     /**
-     * @param $action
+     * Validates and brings method params to its types
      * @throws Exception
      */
-    private function validateActionParams($action)
+    private function validateActionParams()
     {
-        $method = $this->getMethodFromAction($action);
-        $paramsTypes = $this->getMethodParamsTypes($method);
-
         foreach ($this->requestObject['params'] as $name=>$value) {
-            if (!isset($paramsTypes[$name])) continue;
-            $type = $paramsTypes[$name];
+            if (!isset($this->methodInfo['params'][$name])) continue;
+            $paramInfo = $this->methodInfo['params'][$name];
 
-            $this->requestObject['params'][$name] = $this->bringValueToType($type, $value);
+            $this->requestObject['params'][$name] = Helper::bringValueToType(
+                $paramInfo['type'],
+                $value,
+                $paramInfo['isNullable'],
+                $paramInfo['restrictions']
+            );
         }
     }
 
     /**
+     * Returns reflected method from action
      * @param $action
      * @return \ReflectionMethod
      */
@@ -237,61 +247,92 @@ class Controller extends \yii\web\Controller
     }
 
     /**
-     * @param $type
-     * @param $value
-     * @return mixed
-     * @throws Exception
+     * Returns method params with types from method phpDoc comments
+     * @return array
      */
-    private function bringValueToType($type, $value)
+    private function getMethodParamsTypes()
     {
-        $typeParts = explode("[]", $type);
-        $type = current($typeParts);
-        if (count($typeParts) > 2)
-            throw new Exception("Type '$type' is invalid", Exception::INTERNAL_ERROR);
-
-        if (count($typeParts) === 2) {
-            if (!is_array($value))
-                throw new Exception("Invalid Params", Exception::INVALID_PARAMS);
-
-            foreach ($value as $key=>$childValue) {
-                $value[$key] = $this->bringValueToType($type, $childValue);
-            }
-            return $value;
-        }
-
-        if (class_exists($type)) {
-            if (!is_subclass_of($type, '\\JsonRpc2\\Dto'))
-                throw new Exception("Class '$type' MUST be instance of '\\JsonRpc2\\Dto'", Exception::INTERNAL_ERROR);
-            return new $type($value);
-        } else {
-            switch ($type) {
-                case "string":
-                    return (string)$value;
-                    break;
-                case "int":
-                    return (int)$value;
-                    break;
-                case "float":
-                    return (float)$value;
-                    break;
-                case "array":
-                    throw new Exception("Parameter type 'array' is deprecated. Use square brackets with simply types or DTO based classes instead.", Exception::INTERNAL_ERROR);
-                case "bool":
-                    return (bool)$value;
-                    break;
-            }
-        }
+        return array_reduce($this->methodInfo['params'], function ($result, $item) {
+            $result[$item['name']] = $item['type'];
+            return $result;
+        }, []);
     }
 
     /**
-     * @param $method \ReflectionMethod
-     * @return array
+     * @param $result
+     * @return mixed
      */
-    private function getMethodParamsTypes($method)
+    private function validateResult($result)
     {
-        $variable = '\$([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)';
-        preg_match_all("/@param $variable ([\w\\\\\[\]]+)/", $method->getDocComment(), $matches);
-        $paramsTypes = array_combine($matches[1], $matches[2]);
-        return $paramsTypes;
+        if (!empty($this->methodInfo['return'])) {
+            $result = Helper::bringValueToType(
+                $this->methodInfo['return']['type'],
+                $result,
+                $this->methodInfo['return']['isNullable'],
+                $this->methodInfo['return']['restrictions']
+            );
+        } else if (empty($result))
+            $result = $this->defaultResult;
+
+        return $result;
+    }
+
+    /**
+     * Parses phpDoc comment and fills data in $this->methodInfo
+     * @param $method \ReflectionMethod
+     * @throws Exception
+     */
+    private function parseMethodDocComment($method)
+    {
+        $variableRegex = '\$([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)';
+
+        $infoTpl = [
+            'type' => '',
+            'isNullable' => false,
+            'restrictions' => [],
+        ];
+
+        $this->methodInfo = [
+            'params' => [],
+            'return' => []
+        ];
+
+        $lines = preg_split ('/$\R?^/m', $method->getDocComment());
+        for ($i=0; $i<count($lines); $i++) {
+            preg_match("/@param $variableRegex ([\w\\\\\[\]]+)/", $lines[$i], $paramMatches);
+            if (!empty($paramMatches)) {
+                $subject = &$this->methodInfo['params'][$paramMatches[1]];
+                $subject = $infoTpl;
+                $subject['name'] = $paramMatches[1];
+                $subject['type'] = $paramMatches[2];
+            } else {
+                preg_match("/@return ([\w\\\\\[\]]+)/", $lines[$i], $paramMatches);
+                if (!empty($paramMatches)) {
+                    $subject = &$this->methodInfo['return'];
+                    $subject = $infoTpl;
+                    $subject['type'] = $paramMatches[1];
+                }
+            }
+            if (!empty($subject)) {
+
+                //search in two next lines for @null or @inArray tags
+                for ($j=0; $j<2; $j++) {
+                    preg_match("/@(null|inArray(\[(.*)\]))/", $lines[$i+1], $tagMatches);
+                    if (empty($tagMatches)) break;
+
+                    if (strpos($tagMatches[0], "@inArray") === 0 && in_array($subject['type'], ['string', 'int'])) {
+                        eval("\$parsedData = {$tagMatches[2]};");
+                        if (!is_array($parsedData))
+                            throw new Exception("Invalid syntax in @inArray{$tagMatches[2]}", Exception::INTERNAL_ERROR);
+                        $subject['restrictions'] = $parsedData;
+                    } elseif (strpos($tagMatches[0], "@null") === 0) {
+                        $subject['isNullable'] = true;
+                    }
+
+                    $i++;
+                }
+            }
+            unset($subject);
+        }
     }
 }

@@ -16,61 +16,23 @@ class Dto {
             $property = new ReflectionProperty(get_class($this), $name);
             if (!$property->isPublic()) continue;
 
-            preg_match_all("/@var ([\w\\\\]+)/", $property->getDocComment(), $matches);
-            $type = current($matches[1]);
+            preg_match("/@var ([\w\\\\]+)/", $property->getDocComment(), $matches);
+            $type = !empty($matches) ? $matches[1] : false;
             if (empty($type)) continue;
 
-            $this->$name = $this->bringValueToType($type, isset($data[$name]) ? $data[$name] : $defaultValue);
-        }
-    }
+            preg_match("/@null/", $property->getDocComment(), $matches);
+            $isNullable = !empty($matches);
 
-    /**
-     * @param $type
-     * @param $value
-     * @return array|bool|float|int|string
-     * @throws Exception
-     */
-    private function bringValueToType($type, $value)
-    {
-        $typeParts = explode("[]", $type);
-        $type = current($typeParts);
-        if (count($typeParts) > 2)
-            throw new Exception("Type '$type' is invalid in ".get_class($this), Exception::INTERNAL_ERROR);
-
-        if (count($typeParts) === 2) {
-            if (!is_array($value))
-                throw new Exception("Invalid Params in ".get_class($this), Exception::INVALID_PARAMS);
-
-            foreach ($value as $key=>$childValue) {
-                $value[$key] = $this->bringValueToType($type, $childValue);
+            $restrictions = [];
+            preg_match("/@(inArray(\[(.*)\]))/", $property->getDocComment(), $matches);
+            if (!empty($matches) && in_array($type, ['string', 'int'])) {
+                eval("\$parsedData = {$matches[2]};");
+                if (!is_array($parsedData))
+                    throw new Exception(get_class($this).": Invalid syntax in @inArray{$matches[2]}", Exception::INTERNAL_ERROR);
+                $restrictions = $parsedData;
             }
-            return $value;
-        }
 
-        if (class_exists($type)) {
-            if (!is_subclass_of($type, '\\JsonRpc2\\Dto'))
-                throw new Exception("Class '$type' MUST be instance of '\\JsonRpc2\\Dto'", Exception::INTERNAL_ERROR);
-            $value = new $type($value);
-            return $value;
-        } else {
-            switch ($type) {
-                case "string":
-                    $value = (string)$value;
-                    break;
-                case "int":
-                    $value = (int)$value;
-                    break;
-                case "float":
-                    $value = (float)$value;
-                    break;
-                case "array":
-                    $value = (array)$value;
-                    break;
-                case "bool":
-                    $value = (bool)$value;
-                    break;
-            }
-            return $value;
+            $this->$name = Helper::bringValueToType($type, isset($data[$name]) ? $data[$name] : $defaultValue, $isNullable, $restrictions);
         }
     }
 }
