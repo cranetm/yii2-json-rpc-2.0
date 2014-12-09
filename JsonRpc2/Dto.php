@@ -7,16 +7,16 @@ use ReflectionProperty;
 class Dto {
     public function __construct($data)
     {
-        $this->setDataFromArray($data);
+        $this->setDataFromArray((array)$data);
     }
 
-    public function setDataFromArray($data)
+    protected function setDataFromArray($data)
     {
         foreach (get_object_vars($this) as $name=>$defaultValue) {
             $property = new ReflectionProperty(get_class($this), $name);
             if (!$property->isPublic()) continue;
 
-            preg_match("/@var ([\w\\\\]+)/", $property->getDocComment(), $matches);
+            preg_match("/@var[ ]+([\w\\\\]+)/", $property->getDocComment(), $matches);
             $type = !empty($matches) ? $matches[1] : false;
             if (empty($type)) continue;
 
@@ -28,11 +28,10 @@ class Dto {
             if (!empty($matches) && in_array($type, ['string', 'int'])) {
                 eval("\$parsedData = {$matches[2]};");
                 if (!is_array($parsedData))
-                    throw new Exception(get_class($this).": Invalid syntax in @inArray{$matches[2]}", Exception::INTERNAL_ERROR);
+                    throw new Exception(get_class($this).": Invalid syntax in {$name} tag @inArray{$matches[2]}", Exception::INTERNAL_ERROR);
                 $restrictions = $parsedData;
             }
-
-            $this->$name = Helper::bringValueToType($type, isset($data[$name]) ? $data[$name] : $defaultValue, $isNullable, $restrictions);
+            $this->$name = Helper::bringValueToType($this, $type, isset($data[$name]) ? $data[$name] : $defaultValue, $isNullable, $restrictions);
         }
     }
 }

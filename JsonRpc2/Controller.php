@@ -20,7 +20,7 @@ class Controller extends \yii\web\Controller
         'return' => []
     ];
 
-    /** @var array Contains parsed JSON-RPC 2.0 request object*/
+    /** @var \stdClass Contains parsed JSON-RPC 2.0 request object*/
     private $requestObject;
 
     /** @var array Use as 'result' when Action returns null */
@@ -39,13 +39,42 @@ class Controller extends \yii\web\Controller
      */
     public function runAction($id, $params = [])
     {
+        $this->initRequest($id);
+
+        try {
+            $requestObject = Json::decode(file_get_contents('php://input'), false);
+        } catch (InvalidParamException $e) {
+            $requestObject = null;
+        }
+        $isBatch = is_array($requestObject);
+        $requests = $isBatch ? $requestObject : [$requestObject];
+        $resultData = null;
+        foreach ($requests as $request) {
+            if($response = $this->getActionResponse($request))
+                $resultData[] = $response;
+        }
+
+        $response = new Response();
+        $response->format = Response::FORMAT_JSON;
+        $response->data = $isBatch ? $resultData : current($resultData);
+        return $response;
+    }
+
+    /**
+     * Runs and returns method response
+     * @param $requestObject
+     * @throws \Exception
+     * @throws \yii\web\HttpException
+     * @return Response
+     */
+    private function getActionResponse($requestObject)
+    {
         $error = null;
         $result = [];
         try {
-            $this->initRequest($id);
-            $this->parseAndValidateRequestObject();
+            $this->parseAndValidateRequestObject($requestObject);
             ob_start();
-            $dirtyResult = parent::runAction($this->requestObject['method']);
+            $dirtyResult = parent::runAction($this->requestObject->method);
             ob_clean();
             $result = $this->validateResult($dirtyResult);
         } catch (HttpException $e) {
@@ -56,23 +85,22 @@ class Controller extends \yii\web\Controller
             $error = new Exception("Internal error", Exception::INTERNAL_ERROR);
         }
 
-        $response = new Response();
-        $response->format = Response::FORMAT_JSON;
-        if (!isset($this->requestObject['id']) && empty($error))
-            return $response;
+        $responseData = [];
+        if (!isset($this->requestObject->id) && (empty($error) || $error->getCode() != Exception::PARSE_ERROR))
+            return $responseData;
 
-        $response->data = [
+        $responseData = [
             'jsonrpc' => '2.0',
-            'id' => !empty($this->requestObject['id'])? $this->requestObject['id'] : null,
+            'id' => !empty($this->requestObject->id)? $this->requestObject->id : null,
         ];
 
         if (!empty($error))
-            $response->data['error'] = $error->toArray();
+            $responseData['error'] = $error->toArray();
 
         if (!empty($result) || is_array($result))
-            $response->data['result'] = $result;
+            $responseData['result'] = $result;
 
-        return $response;
+        return $responseData;
     }
 
     /**
@@ -118,7 +146,7 @@ class Controller extends \yii\web\Controller
 
             $this->parseMethodDocComment($method);
             $this->validateActionParams();
-            $params = $this->requestObject['params'];
+            $params = $this->requestObject->params;
 
             $args = [];
             $missing = [];
@@ -127,17 +155,17 @@ class Controller extends \yii\web\Controller
 
             foreach ($method->getParameters() as $param) {
                 $name = $param->getName();
-                if (array_key_exists($name, $params)) {
+                if (property_exists($params, $name)) {
                     if ($param->isArray() || isset($paramsTypes[$name]) && strpos($paramsTypes[$name], "[]") !== false) { //changes for array types documented as square brackets
-                        $args[] = $actionParams[$name] = is_array($params[$name]) ? $params[$name] : [$params[$name]];
-                    } elseif (!is_array($params[$name])) {
-                        $args[] = $actionParams[$name] = $params[$name];
+                        $args[] = $actionParams[$name] = is_array($params->$name) ? $params->$name : [$params->$name];
+                    } elseif (!is_array($params->$name)) {
+                        $args[] = $actionParams[$name] = $params->$name;
                     } else {
-                        throw new BadRequestHttpException(Yii::t('yii', 'Invalid data received for parameter "{param}".', [
+                        throw new Exception(Yii::t('yii', 'Invalid data received for parameter "{param}".', [
                             'param' => $name,
-                        ]));
+                        ]), Exception::INVALID_REQUEST);
                     }
-                    unset($params[$name]);
+                    unset($params->$name);
                 } elseif ($param->isDefaultValueAvailable()) {
                     $args[] = $actionParams[$name] = $param->getDefaultValue();
                 } else {
@@ -146,16 +174,16 @@ class Controller extends \yii\web\Controller
             }
 
             if (!empty($missing)) {
-                throw new BadRequestHttpException(Yii::t('yii', 'Missing required parameters: {params}', [
+                throw new Exception(Yii::t('yii', 'Missing required parameters: {params}', [
                     'params' => implode(', ', $missing),
-                ]));
+                ]), Exception::INVALID_REQUEST);
             }
 
             $this->actionParams = $actionParams;
 
             return $args;
         } catch (BadRequestHttpException $e) {
-            throw new Exception("Invalid Params", Exception::INVALID_PARAMS);
+            throw new Exception("Invalid Request", Exception::INVALID_REQUEST);
         }
     }
 
@@ -172,18 +200,15 @@ class Controller extends \yii\web\Controller
 
     /**
      * Try to decode input json data and validate for required fields for JSON-RPC 2.0
+     * @param $requestObject string
      * @throws Exception
      */
-    private function parseAndValidateRequestObject()
+    private function parseAndValidateRequestObject($requestObject)
     {
-        $input = file_get_contents('php://input');
-        try {
-            $requestObject = Json::decode($input, true);
-        } catch (InvalidParamException $e) {
+        if (!is_object($requestObject))
             throw new Exception("Parse error", Exception::PARSE_ERROR);
-        }
 
-        if (!isset($requestObject['jsonrpc']) || $requestObject['jsonrpc'] !== '2.0' || empty($requestObject['method']))
+        if (!isset($requestObject->jsonrpc) || $requestObject->jsonrpc !== '2.0' || empty($requestObject->method))
             throw new Exception("Invalid Request", Exception::INVALID_REQUEST);
 
         $this->requestObject = $requestObject;
@@ -195,20 +220,19 @@ class Controller extends \yii\web\Controller
      */
     private function prepareActionParams($action)
     {
+        if (is_object($this->requestObject->params))
+            return;
+
         $method = $this->getMethodFromAction($action);
-        $methodParams = [];
+        $methodParams = new \stdClass();
 
+        $i=0;
         foreach ($method->getParameters() as $param) {
-            $methodParams[$param->getName()] = $param->getName();
+            if (!isset($this->requestObject->params[$i])) continue;
+            $methodParams->{$param->getName()} = $this->requestObject->params[$i];
+            $i++;
         }
-
-        if (count(array_intersect_key($methodParams, $this->requestObject['params'])) === 0) {
-            $additionalParamsNumber = count($methodParams)-count($this->requestObject['params']);
-            $this->requestObject['params'] = array_combine(
-                $methodParams,
-                $additionalParamsNumber ? array_merge($this->requestObject['params'], array_fill(0, $additionalParamsNumber, null)) : $this->requestObject['params']
-            );
-        }
+        $this->requestObject->params = $methodParams;
     }
 
     /**
@@ -217,11 +241,12 @@ class Controller extends \yii\web\Controller
      */
     private function validateActionParams()
     {
-        foreach ($this->requestObject['params'] as $name=>$value) {
+        foreach ($this->requestObject->params as $name=>$value) {
             if (!isset($this->methodInfo['params'][$name])) continue;
             $paramInfo = $this->methodInfo['params'][$name];
 
-            $this->requestObject['params'][$name] = Helper::bringValueToType(
+            $this->requestObject->params->$name = Helper::bringValueToType(
+                $this,
                 $paramInfo['type'],
                 $value,
                 $paramInfo['isNullable'],
@@ -266,6 +291,7 @@ class Controller extends \yii\web\Controller
     {
         if (!empty($this->methodInfo['return'])) {
             $result = Helper::bringValueToType(
+                $this,
                 $this->methodInfo['return']['type'],
                 $result,
                 $this->methodInfo['return']['isNullable'],
@@ -323,7 +349,7 @@ class Controller extends \yii\web\Controller
                     if (strpos($tagMatches[0], "@inArray") === 0 && in_array($subject['type'], ['string', 'int'])) {
                         eval("\$parsedData = {$tagMatches[2]};");
                         if (!is_array($parsedData))
-                            throw new Exception("Invalid syntax in @inArray{$tagMatches[2]}", Exception::INTERNAL_ERROR);
+                            throw new Exception(sprintf("Invalid syntax in %s in tag @inArray{$tagMatches[2]}", get_class($this)), Exception::INTERNAL_ERROR);
                         $subject['restrictions'] = $parsedData;
                     } elseif (strpos($tagMatches[0], "@null") === 0) {
                         $subject['isNullable'] = true;
