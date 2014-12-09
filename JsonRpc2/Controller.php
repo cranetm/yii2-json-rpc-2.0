@@ -23,11 +23,6 @@ class Controller extends \yii\web\Controller
     /** @var \stdClass Contains parsed JSON-RPC 2.0 request object*/
     private $requestObject;
 
-    /** @var array Use as 'result' when Action returns null */
-    private $defaultResult = [
-        "success" => true
-    ];
-
     /**
      * Validates, runs Action and returns result in JSON-RPC 2.0 format
      * @param string $id the ID of the action to be executed.
@@ -49,9 +44,14 @@ class Controller extends \yii\web\Controller
         $isBatch = is_array($requestObject);
         $requests = $isBatch ? $requestObject : [$requestObject];
         $resultData = null;
-        foreach ($requests as $request) {
-            if($response = $this->getActionResponse($request))
-                $resultData[] = $response;
+        if (empty($requests)) {
+            $isBatch = false;
+            $resultData = [Helper::formatResponse(null, new Exception("Invalid Request", Exception::INVALID_REQUEST))];
+        } else {
+            foreach ($requests as $request) {
+                if($response = $this->getActionResponse($request))
+                    $resultData[] = $response;
+            }
         }
 
         $response = new Response();
@@ -69,8 +69,7 @@ class Controller extends \yii\web\Controller
      */
     private function getActionResponse($requestObject)
     {
-        $error = null;
-        $result = [];
+        $result = $error = null;
         try {
             $this->parseAndValidateRequestObject($requestObject);
             ob_start();
@@ -85,22 +84,10 @@ class Controller extends \yii\web\Controller
             $error = new Exception("Internal error", Exception::INTERNAL_ERROR);
         }
 
-        $responseData = [];
         if (!isset($this->requestObject->id) && (empty($error) || $error->getCode() != Exception::PARSE_ERROR))
-            return $responseData;
+            return null;
 
-        $responseData = [
-            'jsonrpc' => '2.0',
-            'id' => !empty($this->requestObject->id)? $this->requestObject->id : null,
-        ];
-
-        if (!empty($error))
-            $responseData['error'] = $error->toArray();
-
-        if (!empty($result) || is_array($result))
-            $responseData['result'] = $result;
-
-        return $responseData;
+        return Helper::formatResponse($result, $error, !empty($this->requestObject->id)? $this->requestObject->id : null);
     }
 
     /**
@@ -297,8 +284,7 @@ class Controller extends \yii\web\Controller
                 $this->methodInfo['return']['isNullable'],
                 $this->methodInfo['return']['restrictions']
             );
-        } else if (empty($result))
-            $result = $this->defaultResult;
+        }
 
         return $result;
     }

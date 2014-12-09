@@ -2,7 +2,36 @@
 
 namespace JsonRpc2;
 
-class Helper {
+class Helper
+{
+    /** @var array Use as 'result' when method returns null */
+    private static $defaultResult = [
+        "success" => true
+    ];
+
+    /**
+     * Formats and returns
+     * @param null $result
+     * @param \JsonRpc2\Exception|null $error
+     * @param null $id
+     * @return array
+     */
+    public static function formatResponse ($result = null, Exception $error = null, $id = null)
+    {
+        $response = [
+            'jsonrpc' => '2.0',
+            'id' => $id,
+        ];
+
+        if (!empty($error))
+            $response['error'] = $error->toArray();
+        else if (null === $result)
+            $response['result'] = self::$defaultResult;
+        else
+            $response['result'] = $result;
+
+        return $response;
+    }
 
     /**
      * Recursively brings value to type
