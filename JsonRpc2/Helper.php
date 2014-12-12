@@ -18,19 +18,22 @@ class Helper
      */
     public static function formatResponse ($result = null, Exception $error = null, $id = null)
     {
-        $response = [
+        $resultKey = 'result';
+
+        if (!empty($error)) {
+            $resultKey = 'error';
+            $resultValue = $error->toArray();
+        }
+        else if (null === $result)
+            $resultValue = self::$defaultResult;
+        else
+            $resultValue = $result;
+
+        return [
             'jsonrpc' => '2.0',
+            $resultKey => $resultValue,
             'id' => $id,
         ];
-
-        if (!empty($error))
-            $response['error'] = $error->toArray();
-        else if (null === $result)
-            $response['result'] = self::$defaultResult;
-        else
-            $response['result'] = $result;
-
-        return $response;
     }
 
     /**

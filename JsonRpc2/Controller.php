@@ -56,7 +56,7 @@ class Controller extends \yii\web\Controller
 
         $response = new Response();
         $response->format = Response::FORMAT_JSON;
-        $response->data = $isBatch ? $resultData : current($resultData);
+        $response->data = $isBatch || null === $resultData ? $resultData : current($resultData);
         return $response;
     }
 
@@ -69,7 +69,7 @@ class Controller extends \yii\web\Controller
      */
     private function getActionResponse($requestObject)
     {
-        $result = $error = null;
+        $this->requestObject = $result = $error = null;
         try {
             $this->parseAndValidateRequestObject($requestObject);
             ob_start();
@@ -84,7 +84,7 @@ class Controller extends \yii\web\Controller
             $error = new Exception("Internal error", Exception::INTERNAL_ERROR);
         }
 
-        if (!isset($this->requestObject->id) && (empty($error) || $error->getCode() != Exception::PARSE_ERROR))
+        if (!isset($this->requestObject->id) && (empty($error) || !in_array($error->getCode(), [Exception::PARSE_ERROR, Exception::INVALID_REQUEST])))
             return null;
 
         return Helper::formatResponse($result, $error, !empty($this->requestObject->id)? $this->requestObject->id : null);
@@ -192,13 +192,18 @@ class Controller extends \yii\web\Controller
      */
     private function parseAndValidateRequestObject($requestObject)
     {
-        if (!is_object($requestObject))
+        if (null === $requestObject)
             throw new Exception("Parse error", Exception::PARSE_ERROR);
 
-        if (!isset($requestObject->jsonrpc) || $requestObject->jsonrpc !== '2.0' || empty($requestObject->method))
+        if (!is_object($requestObject)
+            || !isset($requestObject->jsonrpc) || $requestObject->jsonrpc !== '2.0'
+            || empty($requestObject->method) || "string" != gettype($requestObject->method)
+        )
             throw new Exception("Invalid Request", Exception::INVALID_REQUEST);
 
         $this->requestObject = $requestObject;
+        if (!isset($this->requestObject->params))
+            $this->requestObject->params = [];
     }
 
     /**
