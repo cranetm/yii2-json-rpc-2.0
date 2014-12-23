@@ -43,6 +43,7 @@ Easiest way to use in 4 steps:<br/>
     ~~~
 4. Make json request to controller (used pretty urls without index.php)
     >Request method MUST be POST and Content-type MUST be application/json
+
     ~~~javascript
     http://yoursite/services
     ~~~
