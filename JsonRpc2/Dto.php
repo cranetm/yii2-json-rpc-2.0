@@ -16,7 +16,7 @@ class Dto {
             $property = new ReflectionProperty(get_class($this), $name);
             if (!$property->isPublic()) continue;
 
-            preg_match("/@var[ ]+([\w\\\\]+)/", $property->getDocComment(), $matches);
+            preg_match("/@var[ ]+([\w\\\\\[\]]+)/", $property->getDocComment(), $matches);
             $type = !empty($matches) ? $matches[1] : false;
             if (empty($type)) continue;
 
