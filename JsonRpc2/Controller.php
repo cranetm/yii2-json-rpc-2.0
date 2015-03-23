@@ -180,7 +180,7 @@ class Controller extends \yii\web\Controller
      */
     private function initRequest($id)
     {
-        $contentType = Yii::$app->request->getContentType();
+        list($contentType) = explode(";", Yii::$app->request->getContentType()); //cut charset
         if (!empty($id) || !Yii::$app->request->getIsPost() || empty($contentType) || $contentType != "application/json")
             throw new HttpException(404, "Page not found");
     }
