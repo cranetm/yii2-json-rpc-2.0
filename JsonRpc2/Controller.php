@@ -21,7 +21,7 @@ class Controller extends \yii\web\Controller
     ];
 
     /** @var \stdClass Contains parsed JSON-RPC 2.0 request object*/
-    private $requestObject;
+    protected $requestObject;
 
     /**
      * Validates, runs Action and returns result in JSON-RPC 2.0 format
