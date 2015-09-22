@@ -63,6 +63,55 @@ Easiest way to use in 4 steps:<br/>
 
 <br/>
 
+###Authentication Extension
+If you would like to use the [JSON RPC v2.0 Authentication Extension](https://jsonrpcx.org/AuthX/HomePage),
+you may use the \JsonRpc2\extensions\AuthTrait in your instance of
+\JsonRpc2\Controller like
+
+~~~php
+class ServicesController extends \JsonRpc2\Controller
+{
+    use \JsonRpc2\extensions\AuthTrait;
+}
+~~~
+
+Then, you can make a request with an auth token like
+
+~~~javascript
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "whoami",
+    "auth": "some_access_token"
+}
+~~~
+
+Finally, in a [Filter](http://www.yiiframework.com/doc-2.0/guide-structure-filters.html)
+or in your action method, you can call the getAuthCredentials() to get the value
+of the "auth" member of the request object like
+
+~~~php
+public function actionWhoami($message)
+{
+    $user = User::findIdentityByAccessToken($this->getAuthCredentials());
+    if (!$user) {
+        throw new \JsonRpc2\extensions\AuthException('Missing auth',
+            \JsonRpc2\extensions\AuthException::MISSING_AUTH);
+    }
+    
+    return ['uid' => $user->id];
+}
+~~~
+
+The nature of the "auth" value and how your User identity class will use it to
+findIdentityByAccessToken is application specific. For example, in simple
+scenarios when each user can only have one access token, you may store the
+access token in an access_token column in the user table. See the Yii
+[REST Authentication](http://www.yiiframework.com/doc-2.0/guide-rest-authentication.html)
+documentation for related information.
+
+<br/>
+
 ###Params validation
 For validation params data you MUST create [phpDoc @param](http://manual.phpdoc.org/HTMLSmartyConverter/PHP/phpDocumentor/tutorial_tags.param.pkg.html) tags comments with type to action method.<br/>
 After that param data will be converted to documented type.
