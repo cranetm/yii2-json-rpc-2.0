@@ -54,7 +54,7 @@ class Controller extends \yii\web\Controller
             }
         }
 
-        $response = new Response();
+        $response = Yii::$app->getResponse();
         $response->format = Response::FORMAT_JSON;
         $response->data = $isBatch || null === $resultData ? $resultData : current($resultData);
         return $response;
