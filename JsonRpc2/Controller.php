@@ -316,12 +316,12 @@ class Controller extends \yii\web\Controller
 
         $lines = preg_split ('/$\R?^/m', $method->getDocComment());
         for ($i=0; $i<count($lines); $i++) {
-            preg_match("/@param $variableRegex ([\w\\\\\[\]]+)/", $lines[$i], $paramMatches);
+            preg_match("/@param ([\w\\\\\[\]]+) $variableRegex/", $lines[$i], $paramMatches);
             if (!empty($paramMatches)) {
-                $subject = &$this->methodInfo['params'][$paramMatches[1]];
+                $subject = &$this->methodInfo['params'][$paramMatches[2]];
                 $subject = $infoTpl;
-                $subject['name'] = $paramMatches[1];
-                $subject['type'] = $paramMatches[2];
+                $subject['name'] = $paramMatches[2];
+                $subject['type'] = $paramMatches[1];
             } else {
                 preg_match("/@return ([\w\\\\\[\]]+)/", $lines[$i], $paramMatches);
                 if (!empty($paramMatches)) {

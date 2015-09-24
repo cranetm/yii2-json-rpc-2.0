@@ -138,7 +138,7 @@ But we can receive params as associative object and in this case param's order i
 Let's validate **$message** as int value in our **actionUpdate** and increase it:
 ~~~php
 /**
- * @param $message int
+ * @param int $message
  * @return array
  */
 public function actionUpdate($message)
@@ -195,7 +195,7 @@ class Test extends Dto {
 ...and change **actionUpdate** for using Test DTO
 ~~~php
 /**
- * @param $test \JsonRpc2\Dto\Test
+ * @param \JsonRpc2\Dto\Test $test
  * @return array
  */
 public function actionUpdate($test)
@@ -223,8 +223,8 @@ You can use this arrays in actions OR in DTOs and all params data will be valida
 **'Update'** Action:
 ~~~php
 /**
- * @param $tests \JsonRpc2\Dto\Test[]
- * @param $messages string[]
+ * @param \JsonRpc2\Dto\Test[] $tests
+ * @param string[] $messages
  * @return array
  */
 public function actionUpdate($tests, $messages)
