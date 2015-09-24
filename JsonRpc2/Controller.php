@@ -49,7 +49,7 @@ class Controller extends \yii\web\Controller
             $resultData = [Helper::formatResponse(null, new Exception("Invalid Request", Exception::INVALID_REQUEST))];
         } else {
             foreach ($requests as $request) {
-                if($response = $this->getActionResponse($request))
+                if($response = $this->getActionResponse($request, $id))
                     $resultData[] = $response;
             }
         }
@@ -67,11 +67,11 @@ class Controller extends \yii\web\Controller
      * @throws \yii\web\HttpException
      * @return Response
      */
-    private function getActionResponse($requestObject)
+    private function getActionResponse($requestObject, $id)
     {
         $this->requestObject = $result = $error = null;
         try {
-            $this->parseAndValidateRequestObject($requestObject);
+            $this->parseAndValidateRequestObject($requestObject, $id);
             ob_start();
             $dirtyResult = parent::runAction($this->requestObject->method);
             ob_clean();
@@ -178,7 +178,7 @@ class Controller extends \yii\web\Controller
      * Request has to be sent as POST and with Content-type: application/json
      * @throws \yii\web\HttpException
      */
-    private function initRequest($id)
+    protected function initRequest($id)
     {
         list($contentType) = explode(";", Yii::$app->request->getContentType()); //cut charset
         if (!empty($id) || !Yii::$app->request->getIsPost() || empty($contentType) || $contentType != "application/json")
@@ -190,7 +190,7 @@ class Controller extends \yii\web\Controller
      * @param $requestObject string
      * @throws Exception
      */
-    private function parseAndValidateRequestObject($requestObject)
+    protected function parseAndValidateRequestObject($requestObject, $id)
     {
         if (null === $requestObject)
             throw new Exception("Parse error", Exception::PARSE_ERROR);

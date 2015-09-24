@@ -112,6 +112,56 @@ documentation for related information.
 
 <br/>
 
+###Light Method Protocol
+If you wish, you may uuse a "light" method protocol that allows clients to
+encode the method name in the URL instead of in the "method" parameter of the
+request object. To do this, use the \JsonRpc2\LightMethodProtocolTrait in your
+instance of \JsonRpc2\Controller like
+
+~~~php
+class ServicesController extends \JsonRpc2\Controller
+{
+    use \JsonRpc2\LightMethodProtocolTrait;
+}
+~~~
+
+One advantage of the light method format is that web server access logs will
+contain the method invoked, because it is in the URL. The standard "heavy"
+format will not, because the method is inside the POST data.
+
+Without the LightMethodProtocol, a client would post to
+```
+http://yoursite/services
+```
+with data
+```javascript
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "update",
+    "params": ["world"}]
+}
+```
+
+However, with the LightMethodProtocol, a client could instead post to
+```
+http://yoursite/services/update
+```
+with data
+```javascript
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "params": ["world"}]
+}
+```
+
+The method may be specified both in the URL and in the request object
+provided that they match.  If the method is specified in both places, an
+error is thrown if they do not match.
+
+<br/>
+
 ###Params validation
 For validation params data you MUST create [phpDoc @param](http://manual.phpdoc.org/HTMLSmartyConverter/PHP/phpDocumentor/tutorial_tags.param.pkg.html) tags comments with type to action method.<br/>
 After that param data will be converted to documented type.
