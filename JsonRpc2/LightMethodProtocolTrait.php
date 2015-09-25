@@ -21,7 +21,7 @@ namespace JsonRpc2;
  *     "jsonrpc": "2.0",
  *     "id": 1,
  *     "method": "update",
- *     "params": ["world"}]
+ *     "params": ["world"]
  * }
  * ```
  * 
@@ -34,7 +34,7 @@ namespace JsonRpc2;
  * {
  *     "jsonrpc": "2.0",
  *     "id": 1,
- *     "params": ["world"}]
+ *     "params": ["world"]
  * }
  * ```
  * 

@@ -113,7 +113,7 @@ documentation for related information.
 <br/>
 
 ###Light Method Protocol
-If you wish, you may uuse a "light" method protocol that allows clients to
+If you wish, you may use a "light" method protocol that allows clients to
 encode the method name in the URL instead of in the "method" parameter of the
 request object. To do this, use the \JsonRpc2\LightMethodProtocolTrait in your
 instance of \JsonRpc2\Controller like
@@ -139,7 +139,7 @@ with data
     "jsonrpc": "2.0",
     "id": 1,
     "method": "update",
-    "params": ["world"}]
+    "params": ["world"]
 }
 ```
 
@@ -152,7 +152,7 @@ with data
 {
     "jsonrpc": "2.0",
     "id": 1,
-    "params": ["world"}]
+    "params": ["world"]
 }
 ```
 
