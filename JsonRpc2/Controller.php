@@ -87,7 +87,7 @@ class Controller extends \yii\web\Controller
         if (!isset($this->requestObject->id) && (empty($error) || !in_array($error->getCode(), [Exception::PARSE_ERROR, Exception::INVALID_REQUEST])))
             return null;
 
-        return Helper::formatResponse($result, $error, !isset($this->requestObject->id)? $this->requestObject->id : null);
+        return Helper::formatResponse($result, $error, isset($this->requestObject->id)? $this->requestObject->id : null);
     }
 
     /**
