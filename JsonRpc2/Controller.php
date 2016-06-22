@@ -83,13 +83,11 @@ class Controller extends \yii\web\Controller
         } catch (HttpException $e) {
             throw $e;
         } catch (Exception $e) {
-            if ($e->getCode() === Exception::INVALID_PARAMS) {
-                $error = new Exception($e->getMessage(), Exception::INTERNAL_ERROR, $e->getData());
-            } else {
-                $error = $e;
-            }
+            \Yii::error($e, __METHOD__);
+            $error = $e;
         } catch (\Exception $e) {
-            $error = new Exception(Yii::t('yii', 'Internal error'), Exception::INTERNAL_ERROR);
+            \Yii::error($e, __METHOD__);
+            $error = new Exception("Internal error", Exception::INTERNAL_ERROR);
         }
 
         if (!isset($this->requestObject->id) && (empty($error) || !in_array($error->getCode(), [Exception::PARSE_ERROR, Exception::INVALID_REQUEST])))
