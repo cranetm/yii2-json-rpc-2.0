@@ -1,5 +1,21 @@
 ##[JSON-RPC 2.0](http://www.jsonrpc.org/specification) for Yii2 with strict type validation of request and response data
-Validation features:
+
+## Table of Contents
+ - [Validation features](#validation-features)
+ - [Using](#using)
+ - [Authentication Extension](#authentication-extension)
+ - [Params validation](#params-validation)
+  - [Example 1](#example-1)
+  - [Example 2](#example-2)
+  - [Example 3](#example-3)
+  - [Example 4](#example-4)
+ - [Response data validation](#response-data-validation)
+  - [Example 5](#example-5)
+ - [Null values and @null tags](#null-values-and-null-tags)
+ - [Value restrictions and @inArray tag](#value-restrictions-and-inarray-tag)
+ - [CORS Support](#cors-support)
+
+## Validation features:
 
 1. Validation for required params if its do not have a default value
 2. Validation for params types<br/>
@@ -9,6 +25,7 @@ Validation features:
 4. @inArray tag to restrict values like @inArray["red","brown","yellow"]. Works only with string and int datatypes.
 
 
+## Using
 Easiest way to use in 4 steps:<br/>
 
 1. Install via composer
@@ -63,7 +80,7 @@ Easiest way to use in 4 steps:<br/>
 
 <br/>
 
-###Authentication Extension
+## Authentication Extension
 If you would like to use the [JSON RPC v2.0 Authentication Extension](https://jsonrpcx.org/AuthX/HomePage),
 you may use the \JsonRpc2\extensions\AuthTrait in your instance of
 \JsonRpc2\Controller like
@@ -98,7 +115,7 @@ public function actionWhoami($message)
         throw new \JsonRpc2\extensions\AuthException('Missing auth',
             \JsonRpc2\extensions\AuthException::MISSING_AUTH);
     }
-    
+
     return ['uid' => $user->id];
 }
 ~~~
@@ -112,11 +129,12 @@ documentation for related information.
 
 <br/>
 
-###Params validation
+## Params validation
 For validation params data you MUST create [phpDoc @param](http://manual.phpdoc.org/HTMLSmartyConverter/PHP/phpDocumentor/tutorial_tags.param.pkg.html) tags comments with type to action method.<br/>
 After that param data will be converted to documented type.
 
-#####Example 1 (parsing params from array OR from object and validate them )
+### Example 1
+(parsing params from array OR from object and validate them )
 In JSON-RPC params for method can received to server as array or as object, where keys are params names and values are params values.
 > In example in **Step4** we sent params as array and in this case first element of array is a first method param, second element - second param and etc.
 
@@ -134,7 +152,8 @@ But we can receive params as associative object and in this case param's order i
 > If method's param have default value it can be passed in request.
 > Instead this param is required and if it will be missing, \JsonRpc2\Exception::INVALID_PARAMS will be thrown
 
-#####Example 2 (simple types like string, int, float, bool)
+### Example 2
+(simple types like string, int, float, bool)
 Let's validate **$message** as int value in our **actionUpdate** and increase it:
 ~~~php
 /**
@@ -172,7 +191,8 @@ response will be
 {"jsonrpc":"2.0","id":1,"result":{"message":2}}  //because all previous data converts as 1
 ~~~
 
-#####Example 3 (structured types as [Data transfer object (DTO)](http://en.wikipedia.org/wiki/Data_transfer_object))
+### Example 3
+(structured types as [Data transfer object (DTO)](http://en.wikipedia.org/wiki/Data_transfer_object))
 In case if params count in method is too long, you can pass them all into one object.<br/>
 This object SHOULD contains only data so DTO pattern is used.<br/>
 DTO is a class with public variables with described types as **$message** in **actionUpdate**.
@@ -216,7 +236,8 @@ So, response will be:
 {"jsonrpc":"2.0","id":1,"result":{"message":"HELLO WORLD"}}
 ~~~
 
-#####Example 4 (array type)
+### Example 4
+(array type)
 For better validation 'array' is deprecated as a variable OR parameter type and you MUST use square brackets with one of simply types or DTOs.<br/>
 You can use this arrays in actions OR in DTOs and all params data will be validated recursively.
 
@@ -245,7 +266,7 @@ class Combined extends Dto {
 }
 ~~~
 
-###Response data validation
+## Response data validation
 To reduce unnecessary functionality to bring to the type of data that come from the server, you must validate the data on the server side.<br/>
 To do this, you MUST add [@return](http://manual.phpdoc.org/HTMLSmartyConverter/PHP/phpDocumentor/tutorial_tags.return.pkg.html) tag with data type in a phpDoc comment.<br/>
 Then the data will be brought to a given type.<br/>
@@ -271,7 +292,8 @@ class User extends Dto
 }
 ~~~
 
-#####Example 5 (response validation):
+### Example 5
+(response validation):
 Let's create action get-users, which imitates fetching data from storage and returns array of Users
 ~~~php
 /**
@@ -303,7 +325,7 @@ Every element of array from response will be converted to User DTO:
 ~~~
 > Even if some values is missing in response array, data brings to User type with all variables described in DTO
 
-#####Example 6 (null values and @null tags)
+## Null values and @null tags
 By default null types are not allowed and all null values are converted to specific types:
 + string - ""
 + int/float - 0
@@ -330,7 +352,7 @@ Let's update User's rights variable to be nullable
 ~~~
 As we can see, rights variable for Marco Polo is null now.
 
-#####Example 6 (value restrictions and @inArray tag)
+## Value restrictions and @inArray tag
 There are many cases where the value may be limited to several variants and should be validated for their presence. <br/>
 How it works?<br/>
 Let's make restrictions for variable User's rights and try to make request.
@@ -367,6 +389,10 @@ And response will be
 ~~~javascript
 {"jsonrpc":"2.0","id":1,"result":[{"id":1,"name":"Marco Polo","type":"admin","rights":"dashboard"},{"id":234,"name":"John Doe","type":"user","rights":"settings"}]}
 ~~~
+
+## CORS Support
+Extention supports CORS requests from 1.2.5 release.
+You may use CORS filter by attaching it as a behavior to a controller, just follow instructions [here](http://www.yiiframework.com/doc-2.0/yii-filters-cors.html)
 
 <br/>
 <br/>

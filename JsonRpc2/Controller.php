@@ -23,6 +23,8 @@ class Controller extends \yii\web\Controller
     /** @var \stdClass Contains parsed JSON-RPC 2.0 request object*/
     protected $requestObject;
 
+    public function actionIndex (){}
+
     /**
      * Validates, runs Action and returns result in JSON-RPC 2.0 format
      * @param string $id the ID of the action to be executed.
@@ -54,7 +56,7 @@ class Controller extends \yii\web\Controller
             }
         }
 
-        $response = new Response();
+        $response = Yii::$app->getResponse();
         $response->format = Response::FORMAT_JSON;
         $response->data = $isBatch || null === $resultData ? $resultData : current($resultData);
         return $response;
@@ -181,8 +183,24 @@ class Controller extends \yii\web\Controller
     private function initRequest($id)
     {
         list($contentType) = explode(";", Yii::$app->request->getContentType()); //cut charset
-        if (!empty($id) || !Yii::$app->request->getIsPost() || empty($contentType) || $contentType != "application/json")
+        $headers = Yii::$app->request->getHeaders();
+        if (!empty($id)
+            || !Yii::$app->request->getIsOptions() && null !== $headers->get('Origin') // CORS Support
+            && (!Yii::$app->request->getIsPost() || empty($contentType) || $contentType != "application/json")
+        ) {
             throw new HttpException(404, "Page not found");
+        }
+
+        //Call beforeActions on modules and controller to run all filters in behaviors() methods
+        $action = parent::createAction('');
+        // call beforeAction on modules
+        foreach ($this->getModules() as $module) {
+            if (!$module->beforeAction($action)) {
+                break;
+            }
+        }
+        // call beforeAction on controller
+        $this->beforeAction($action);
     }
 
     /**
