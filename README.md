@@ -1,3 +1,5 @@
+## [cranetm/yii2-json-rpc-2.0](https://github.com/cranetm/yii2-json-rpc-2.0) repo clone with CamelCase methods maning
+
 ##[JSON-RPC 2.0](http://www.jsonrpc.org/specification) for Yii2 with strict type validation of request and response data
 
 ## Table of Contents
@@ -32,7 +34,7 @@ Easiest way to use in 4 steps:<br/>
 
     in ./composer.json add into 'require' section
     ~~~javascript
-        "cranetm/yii2-json-rpc-2.0": "1.*"
+        "mikle-heavy/yii2-json-rpc-2.0": "1.*"
     ~~~
     and in console/terminal run
     ~~~php
