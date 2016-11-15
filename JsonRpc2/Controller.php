@@ -105,7 +105,21 @@ class Controller extends \yii\web\Controller
      */
     public function createAction($id)
     {
-        $action = parent::createAction($id);
+        if ($id === '') {
+            $id = $this->defaultAction;
+        }
+        $actionMap = $this->actions();
+        if (isset($actionMap[$id])) {
+            return Yii::createObject($actionMap[$id], [$id, $this]);
+        } elseif (preg_match('/^[a-zA-Z0-9\\-_]+$/', $id) && strpos($id, '--') === false && trim($id, '-') === $id) {
+            $methodName = 'action' . str_replace(' ', '', ucwords(implode(' ', explode('-', $id))));
+            if (method_exists($this, $methodName)) {
+                $method = new \ReflectionMethod($this, $methodName);
+                if ($method->isPublic() && $method->getName() === $methodName) {
+                    return new \yii\base\InlineAction($id, $this, $methodName);
+                }
+            }
+        }
         if (empty($action))
             throw new Exception("Method not found", Exception::METHOD_NOT_FOUND);
 
