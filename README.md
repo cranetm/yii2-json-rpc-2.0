@@ -1,4 +1,9 @@
-## [cranetm/yii2-json-rpc-2.0](https://github.com/cranetm/yii2-json-rpc-2.0) repo clone with CamelCase methods naming
+##### [cranetm/yii2-json-rpc-2.0](https://github.com/cranetm/yii2-json-rpc-2.0) repo clone with CamelCase methods naming
+
+Hint: If you got 404 error during API method call - set HTTP header "Content-Type: application/json" and everything must work fine
+
+All the text below taken from original Cranetm repo. 
+
 
 ##[JSON-RPC 2.0](http://www.jsonrpc.org/specification) for Yii2 with strict type validation of request and response data
 
