@@ -31,8 +31,8 @@ class Helper
 
         return [
             'jsonrpc' => '2.0',
-            $resultKey => $resultValue,
             'id' => $id,
+            $resultKey => $resultValue,
         ];
     }
 

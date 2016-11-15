@@ -1,5 +1,5 @@
 {
-    "name": "cranetm/yii2-json-rpc-2.0",
+    "name": "mikle-heavy/yii2-json-rpc-2.0",
     "description": "JSON RPC 2.0 for Yii2 strict type validation of request and response data",
     "keywords": ["yii", "yii2", "json", "rpc", "rpc2", "jsonrpc", "json-rpc", "jsonrpc2", "json-rpc2", "json-rpc-2.0"],
     "license": "Apache-2.0",
@@ -7,7 +7,11 @@
         {
             "name": "tmudriy",
             "email": "tmudriy@gmail.com"
-        }
+        },
+      {
+        "name": "Mikle Heavy",
+        "email": "mikle.heavy@gmail.com"
+      }
     ],
     "minimum-stability": "stable",
     "require": 
