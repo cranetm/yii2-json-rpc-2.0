@@ -1,4 +1,10 @@
-##### [cranetm/yii2-json-rpc-2.0](https://github.com/cranetm/yii2-json-rpc-2.0) repo clone with CamelCase methods naming
+##### [cranetm/yii2-json-rpc-2.0](https://github.com/cranetm/yii2-json-rpc-2.0) repo clone with minor changes
+
+#### What's the difference:
+
+* Fixed well-known Yii2 methods naming issue: API methods must be called like 'do-some-things' (in lower case separated with dashes).
+  Now you can use more comfortable and familiar way to call your methods - 'theCamelCase'.
+* Correct exception class code with default param values
 
 Hint: If you got 404 error during API method call - set HTTP header "Content-Type: application/json" and everything must work fine
 
