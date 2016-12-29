@@ -16,21 +16,66 @@ class Exception extends \yii\base\Exception
 
     private $data = null;
 
+    /**
+     * @var Error[]
+     */
+    private $_errors = array();
+
     protected $code = -32603; // Set server error code by default
     protected $httpCode = 200;
     protected $message = 'Internal error';
 
-    public function __construct($message, $code, $data = null)
+
+    /**
+     * @param Error|Error[] $error
+     * @throws
+     */
+    public function __construct($error = null)
     {
-        $this->data = $data;
-        parent::__construct($message, $code);
+        if (!is_null($error) && !is_array($error)) {
+            $error = array($error);
+        }
+        $this->_errors = $error;
+        parent::__construct($this->message, $this->getRPCCode());
     }
 
-    public function toArray() {
-        return [
-            "code" 	   => $this->getCode(),
-            "message"  => $this->getMessage(),
-			"data"     => $this->data,
-        ];
+    public function getRPCCode()
+    {
+        return $this->code;
+    }
+
+    public function getHTTPStatusCode()
+    {
+        return $this->httpCode;
+    }
+
+    /**
+     * @return array
+     */
+    public function getData()
+    {
+        if (empty($this->_errors)) {
+            return [];
+        }
+        $errorData = [];
+        foreach ($this->_errors as $error) {
+            $error = array(
+                'code' => $error->getCode(),
+                'attribute' => $error->getAttribute(),
+                'message' => $error->getMessage(),
+                'tpl' => $error->getTpl(),
+                'tplParams' => $error->getTplParams(true),
+            );
+            $errorData[] = $error;
+        }
+        return $errorData;
+    }
+
+    /**
+     * @return array
+     */
+    public function toArray()
+    {
+        return $this->getData();
     }
 }
