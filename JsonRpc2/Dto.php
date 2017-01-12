@@ -23,6 +23,9 @@ class Dto {
             preg_match("/@null/", $property->getDocComment(), $matches);
             $isNullable = !empty($matches);
 
+            preg_match("/@required/", $property->getDocComment(), $matches);
+            $isRequired = !empty($matches);
+
             $restrictions = [];
             preg_match("/@(inArray(\[(.*)\]))/", $property->getDocComment(), $matches);
             if (!empty($matches) && in_array($type, ['string', 'int'])) {
@@ -31,6 +34,9 @@ class Dto {
                     throw new Exception(get_class($this).": Invalid syntax in {$name} tag @inArray{$matches[2]}", Exception::INTERNAL_ERROR);
                 $restrictions = $parsedData;
             }
+
+            if ($isRequired && !isset($data[$name]))
+                throw new Exception("Field {$name} is required", Exception::INVALID_PARAMS);
             $this->$name = Helper::bringValueToType($this, $type, isset($data[$name]) ? $data[$name] : $defaultValue, $isNullable, $restrictions);
         }
     }
