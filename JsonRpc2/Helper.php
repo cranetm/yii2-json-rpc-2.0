@@ -85,22 +85,18 @@ class Helper
                     $value = (string)$value;
                     self::restrictValue($parent, $type, $value, $restrictions);
                     return $value;
-                    break;
                 case "int":
                     $value = (int)$value;
                     self::restrictValue($parent, $type, $value, $restrictions);
                     return $value;
-                    break;
                 case "float":
                     $value = (float)$value;
                     self::restrictValue($parent, $type, $value, $restrictions);
                     return $value;
-                    break;
                 case "array":
                     throw new Exception("Parameter type 'array' is deprecated. Use square brackets with simply types or DTO based classes instead.", Exception::INTERNAL_ERROR);
                 case "bool":
                     return (bool)$value;
-                    break;
             }
         }
 
