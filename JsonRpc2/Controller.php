@@ -81,8 +81,10 @@ class Controller extends \yii\web\Controller
         } catch (HttpException $e) {
             throw $e;
         } catch (Exception $e) {
+            \Yii::error($e, __METHOD__);
             $error = $e;
         } catch (\Exception $e) {
+            \Yii::error($e, __METHOD__);
             $error = new Exception("Internal error", Exception::INTERNAL_ERROR);
         }
 
