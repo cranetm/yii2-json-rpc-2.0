@@ -68,7 +68,7 @@ class Controller extends \yii\web\Controller
      * @param $requestObject
      * @throws \Exception
      * @throws \yii\web\HttpException
-     * @return Response
+     * @return Response|array|null
      */
     private function getActionResponse($requestObject)
     {
@@ -358,11 +358,6 @@ class Controller extends \yii\web\Controller
         }
     }
 
-    /** @var array Use as 'result' when method returns null */
-    private static $defaultResult = [
-        "success" => true
-    ];
-
     /**
      * Formats and returns
      * @param null $result
@@ -372,21 +367,16 @@ class Controller extends \yii\web\Controller
      */
     public function formatResponse($result = null, Exception $error = null, $id = null)
     {
-        $resultKey = 'result';
-
-        if (!empty($error)) {
-            $resultKey = 'error';
-            $resultValue = $error->toArray();
-        }
-        else if (null === $result)
-            $resultValue = self::$defaultResult;
-        else
-            $resultValue = $result;
-
-        return [
+        $resultArray = [
             'jsonrpc' => '2.0',
-            $resultKey => $resultValue,
             'id' => $id,
         ];
+
+        if (!empty($error))
+            $resultArray['error'] = $error->toArray();
+        else
+            $resultArray['result'] = $result;
+
+        return $resultArray;
     }
 }
