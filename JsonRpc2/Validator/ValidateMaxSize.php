@@ -19,7 +19,12 @@ class ValidateMaxSize extends JsonRpc2\Validator
             || $type === "string" && mb_strlen($this->value->data) > $maxSize
             || in_array($type, ["integer", "double", "float"]) && $this->value->data > $maxSize
         ) {
-            $this->throwError("For property '{$this->value->name}' allowed max size is {$maxSize}");
+            $this->throwError(
+                \Yii::t('yii', 'For {valueName} allowed max size is {maxSize}',
+                    ['valueName' => $this->value->getFullName(), 'maxSize' => $maxSize]
+                )
+            );
+
         }
     }
 }

@@ -49,7 +49,7 @@ class Controller extends \yii\web\Controller
         $resultData = null;
         if (empty($requests)) {
             $isBatch = false;
-            $resultData = [$this->formatResponse(null, new Exception("Invalid Request", Exception::INVALID_REQUEST))];
+            $resultData = [$this->formatResponse(null, new Exception(Yii::t('yii', 'Invalid Request'), Exception::INVALID_REQUEST))];
         } else {
             foreach ($requests as $request) {
                 if($response = $this->getActionResponse($request))
@@ -88,7 +88,7 @@ class Controller extends \yii\web\Controller
                 $error = $e;
             }
         } catch (\Exception $e) {
-            $error = new Exception("Internal error", Exception::INTERNAL_ERROR);
+            $error = new Exception(Yii::t('yii', 'Internal error'), Exception::INTERNAL_ERROR);
         }
 
         if (!isset($this->requestObject->id) && (empty($error) || !in_array($error->getCode(), [Exception::PARSE_ERROR, Exception::INVALID_REQUEST])))
@@ -112,7 +112,7 @@ class Controller extends \yii\web\Controller
     {
         $action = parent::createAction($id);
         if (empty($action))
-            throw new Exception("Method not found", Exception::METHOD_NOT_FOUND);
+            throw new Exception(Yii::t('yii', 'Method not found').' '.$id, Exception::METHOD_NOT_FOUND);
 
         $this->prepareActionParams($action);
 
@@ -216,13 +216,13 @@ class Controller extends \yii\web\Controller
     private function parseAndValidateRequestObject($requestObject)
     {
         if (null === $requestObject)
-            throw new Exception("Parse error", Exception::PARSE_ERROR);
+            throw new Exception(Yii::t('yii', 'Parse error'), Exception::PARSE_ERROR);
 
         if (!is_object($requestObject)
             || !isset($requestObject->jsonrpc) || $requestObject->jsonrpc !== '2.0'
             || empty($requestObject->method) || "string" != gettype($requestObject->method)
         )
-            throw new Exception("Invalid Request", Exception::INVALID_REQUEST);
+            throw new Exception(Yii::t('yii', 'Invalid Request'), Exception::INVALID_REQUEST);
 
         $this->requestObject = $requestObject;
         if (!isset($this->requestObject->params))
@@ -372,10 +372,12 @@ class Controller extends \yii\web\Controller
             'id' => $id,
         ];
 
-        if (!empty($error))
+        if (!empty($error)) {
+            \Yii::error($error, 'jsonrpc');
             $resultArray['error'] = $error->toArray();
-        else
+        } else {
             $resultArray['result'] = $result;
+        }
 
         return $resultArray;
     }

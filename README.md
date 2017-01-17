@@ -11,8 +11,10 @@
   - [Example 4](#example-4)
  - [Response data validation](#response-data-validation)
   - [Example 5](#example-5)
- - [Null values and @null tags](#null-values-and-null-tags)
- - [Value restrictions and @inArray tag](#value-restrictions-and-inarray-tag)
+ - [Validators](#validators)
+  - [Null values and @notNull tag](#null-values-and-not-null-tag)
+  - [Value restrictions and @inArray tag](#value-restrictions-and-inarray-tag)
+  - [Limit value with @minSize & @maxSize tags](#minsize-maxsize-tags)
  - [CORS Support](#cors-support)
 
 ## Validation features:
@@ -21,8 +23,10 @@
 2. Validation for params types<br/>
     2.1 Using DTOs as structured type<br/>
     2.2 Using square brackets for array types like string[], int[], bool[] or for DTO: ClassName[]<br/>
-3. @null tag to allowing null values (by default all data brings to specific type)
-4. @inArray tag to restrict values like @inArray["red","brown","yellow"]. Works only with string and int datatypes.
+3. Validators:
+    3.1 @notNull tag to deny null values (make it required)
+    3.2 @inArray tag to restrict values like @inArray["red","brown","yellow"]. Works only with string and int datatypes.
+    3.3 @minSize & @maxSize to limit length for strings or values for numbers.
 
 
 ## Using
@@ -288,7 +292,7 @@ class User extends Dto
     public $type = 'user';
 
     /** @var string */
-    public $rights;
+    public $rights="";
 }
 ~~~
 
@@ -325,21 +329,45 @@ Every element of array from response will be converted to User DTO:
 ~~~
 > Even if some values is missing in response array, data brings to User type with all variables described in DTO
 
-## Null values and @null tags
-By default null types are not allowed and all null values are converted to specific types:
-+ string - ""
-+ int/float - 0
-+ bool - false
-+ DTO - empty object (if default value exists, it will use)
-+ array - []
+## Validators
+There are set of validators which can change value or check it for some rules (or both).
+To use it just write it name in phpdoc in the new line after needed variable or property.
+For example:
+~~~php
+    /**
+     * @var int
+     * @inArray[1,2]
+     */
+    public $example=0;
+~~~
+Here we have _inArray_ validator for _$example_ property.
+Script tries to find class with name _JsonRpc2\Validator\ValidateInArray_ and run _validate()_ method(see JsonRpc2\Validator folder).
+If validation error occurs, response object will have data property with explanation
+~~~javascript
+{
+    "cause":"rights",       // failed property
+    "type":"inArray",       // validator name
+    "value":0,              // passed value
+    "restriction":'"1","2"' // active restrictions
+}
+~~~
 
-But in many cases you need a null value and you need to add tag @null in the next line after the description of the type of data.
-
-Let's update User's rights variable to be nullable
+### Null values and @notNull tags
+DTO's values can be NULL by default if is not initialized(same as in php).
+If you need default empty value but not NULL, define it and if you pass NULL defined default value will use(like empty string in example):
 ~~~php
     /**
      * @var string
-     * @null
+     */
+    public $rights="";
+~~~
+But in many cases you need required value which must be passed in DTO. In this case clear default value(if exists) and use tag @notNull .
+
+Let's update User's rights variable to be not NULL and without default value(required)
+~~~php
+    /**
+     * @var string
+     * @notNull
      */
     public $rights;
 ~~~
@@ -348,11 +376,11 @@ Let's update User's rights variable to be nullable
 {"jsonrpc": "2.0","id": 1,"method": "get-users","params": []}
 
 //response
-{"jsonrpc":"2.0","id":1,"result":[{"id":1,"name":"Marco Polo","type":"admin","rights":null},{"id":234,"name":"John Doe","type":"user","rights":"settings"}]}
+{"jsonrpc":"2.0","id":1,"error":{"code":-32603,"message":"JsonRpc2\\Dto\\User::$rights is required and cannot be Null.","data":{"cause":"rights","value":null,"type":"notNull","restriction":""}}}
 ~~~
-As we can see, rights variable for Marco Polo is null now.
+As we can see, rights variable now required.
 
-## Value restrictions and @inArray tag
+### Value restrictions and @inArray tag
 There are many cases where the value may be limited to several variants and should be validated for their presence. <br/>
 How it works?<br/>
 Let's make restrictions for variable User's rights and try to make request.
@@ -369,7 +397,7 @@ Let's make restrictions for variable User's rights and try to make request.
 {"jsonrpc": "2.0","id": 1,"method": "get-users","params": []}
 
 //response
-{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"string value '' is not allowed. Allowed values is 'dashboard','settings'","data":null},"result":[]}
+{"jsonrpc":"2.0","id":1,"error":{"code":-32603,"message":"Value '' is not allowed for JsonRpc2\\Dto\\User::$rights property. Allowed values is 'dashboard','settings'","data":{"cause":"rights","value":"","type":"inArray","restriction":"\"dashboard\",\"settings\""}}}
 ~~~
 Ups... there is error occurs for Marco Polo and about null value in rights which converts to string and became empty string "".<br/>
 But there are restrictions with no empty strings (["dashboard","settings"]) so we have an error.<br/>
@@ -388,6 +416,37 @@ To prevent this you MUST define allowed default value for $rights OR add tag @nu
 And response will be
 ~~~javascript
 {"jsonrpc":"2.0","id":1,"result":[{"id":1,"name":"Marco Polo","type":"admin","rights":"dashboard"},{"id":234,"name":"John Doe","type":"user","rights":"settings"}]}
+~~~
+
+### Limit value with @minSize & @maxSize tags
+This tags limit length for strings or values for numbers.
+~~~php
+    //can be used together
+    /**
+     * @var string
+     * @minSize 15
+     * @maxSize 50
+     */
+    public $name;
+
+    //...or separatly
+    /**
+     * @var string
+     * @minSize 15
+     */
+    public $name;
+
+    //for numbers
+    /**
+     * @var int
+     * @minSize 100
+     * @minSize 500
+     */
+    public $money;
+~~~
+If values is out of this ranges, you will have an error
+~~~javascript
+{"jsonrpc":"2.0","id":1,"error":{"code":-32603,"message":"For JsonRpc2\Dto\User::$money allowed min size is 100","data":{"cause":"money","value":37,"type":"minSize","restriction":"100"}}}
 ~~~
 
 ## CORS Support

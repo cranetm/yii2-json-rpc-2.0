@@ -41,10 +41,7 @@ class Validator
 
     protected function throwError($message)
     {
-        if ($this->value->parent instanceof JsonRpc2\Dto)
-            throw new Exception("In class ".get_class($this->value->parent). " " . $message, Exception::INVALID_PARAMS, $this->getErrorData());
-        else
-            throw new Exception($message, Exception::INVALID_PARAMS, $this->getErrorData());
+        throw new Exception($message, Exception::INVALID_PARAMS, $this->getErrorData());
     }
 
     protected function getErrorData()

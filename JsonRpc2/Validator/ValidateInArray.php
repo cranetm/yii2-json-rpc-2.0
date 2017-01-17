@@ -18,10 +18,25 @@ class ValidateInArray extends JsonRpc2\Validator
         if (!empty($matches) && in_array($type, ["integer", "double", "float", "string"])) {
             eval("\$restrictions = {$matches[1]};");
             if (!is_array($restrictions))
-                throw new Exception(get_class($this).": Invalid syntax in {$this->value->name} tag @inArray{$matches[2]}", Exception::INTERNAL_ERROR);
+                throw new Exception(
+                    \Yii::t('yii', "{className}: Invalid syntax in {valueName} tag @inArray{restrictions}",
+                        [
+                            'className' => get_class($this->value->parent),
+                            'valueName' => $this->value->getFullName(),
+                            'restrictions' => $matches[2],
+                        ]
+                    ),
+                    Exception::INTERNAL_ERROR);
 
             if (!empty($restrictions) && !in_array($this->value->data, $restrictions))
-                $this->throwError(sprintf("For property '{$this->value->name}' value '{$this->value->data}' is not allowed. Allowed values is '%s'", implode("','", $restrictions)));
+                $this->throwError(
+                    \Yii::t('yii', "Value '{valueData}' is not allowed for {valueName}. Allowed values is '{restrictions}'",
+                    [
+                        'valueName' => $this->value->getFullName(),
+                        'valueData' => $this->value->data,
+                        'restrictions' => implode("','", $restrictions),
+                    ]
+                ));
         }
     }
 

@@ -14,6 +14,8 @@ class ValidateNotNull extends JsonRpc2\Validator
     protected function validate()
     {
         if (null === $this->value->data)
-            $this->throwError("Property '{$this->value->name}' is required and cannot be Null.");
+            $this->throwError(
+                \Yii::t('yii', "{valueName} is required and cannot be Null.", ['valueName' => $this->value->getFullName()])
+            );
     }
 }

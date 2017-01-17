@@ -13,6 +13,12 @@ class ValidateNull extends JsonRpc2\Validator
      */
     protected function validate()
     {
-        throw new Exception("@Null for '{$this->value->name}' is deprecated. All values can be NULL by default. Please use @NotNull for required properties.", Exception::INVALID_PARAMS);
+        throw new Exception(
+            \Yii::t('yii',
+                '@Null for {valueName} is deprecated. All values can be NULL by default. Please use @NotNull for required properties.',
+                ['valueName' => $this->value->getFullName()]
+            ),
+            Exception::INVALID_PARAMS
+        );
     }
 }
