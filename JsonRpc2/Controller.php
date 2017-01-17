@@ -2,6 +2,7 @@
 
 namespace JsonRpc2;
 
+use JsonRpc2\Validator\Value;
 use Yii;
 use yii\base\InlineAction;
 use yii\base\InvalidParamException;
@@ -48,7 +49,7 @@ class Controller extends \yii\web\Controller
         $resultData = null;
         if (empty($requests)) {
             $isBatch = false;
-            $resultData = [Helper::formatResponse(null, new Exception("Invalid Request", Exception::INVALID_REQUEST))];
+            $resultData = [$this->formatResponse(null, new Exception("Invalid Request", Exception::INVALID_REQUEST))];
         } else {
             foreach ($requests as $request) {
                 if($response = $this->getActionResponse($request))
@@ -81,7 +82,11 @@ class Controller extends \yii\web\Controller
         } catch (HttpException $e) {
             throw $e;
         } catch (Exception $e) {
-            $error = $e;
+            if ($e->getCode() === Exception::INVALID_PARAMS) {
+                $error = new Exception($e->getMessage(), Exception::INTERNAL_ERROR, $e->getData());
+            } else {
+                $error = $e;
+            }
         } catch (\Exception $e) {
             $error = new Exception("Internal error", Exception::INTERNAL_ERROR);
         }
@@ -89,7 +94,7 @@ class Controller extends \yii\web\Controller
         if (!isset($this->requestObject->id) && (empty($error) || !in_array($error->getCode(), [Exception::PARSE_ERROR, Exception::INVALID_REQUEST])))
             return null;
 
-        return Helper::formatResponse($result, $error, isset($this->requestObject->id)? $this->requestObject->id : null);
+        return $this->formatResponse($result, $error, isset($this->requestObject->id)? $this->requestObject->id : null);
     }
 
     /**
@@ -255,13 +260,11 @@ class Controller extends \yii\web\Controller
             if (!isset($this->methodInfo['params'][$name])) continue;
             $paramInfo = $this->methodInfo['params'][$name];
 
-            $this->requestObject->params->$name = Helper::bringValueToType(
-                $this,
-                $paramInfo['type'],
-                $value,
-                $paramInfo['isNullable'],
-                $paramInfo['restrictions']
-            );
+            $paramValue = new Value($paramInfo['name'], $value, $this);
+            foreach ($paramInfo['validators'] as $type=>$params) {
+                $paramValue = Validator::run($type, $params, $paramValue);
+            }
+            $this->requestObject->params->$name = $paramValue->data;
         }
     }
 
@@ -288,7 +291,7 @@ class Controller extends \yii\web\Controller
     private function getMethodParamsTypes()
     {
         return array_reduce($this->methodInfo['params'], function ($result, $item) {
-            $result[$item['name']] = $item['type'];
+            $result[$item['name']] = $item['validators']['var'];
             return $result;
         }, []);
     }
@@ -300,13 +303,11 @@ class Controller extends \yii\web\Controller
     private function validateResult($result)
     {
         if (!empty($this->methodInfo['return'])) {
-            $result = Helper::bringValueToType(
-                $this,
-                $this->methodInfo['return']['type'],
-                $result,
-                $this->methodInfo['return']['isNullable'],
-                $this->methodInfo['return']['restrictions']
-            );
+            $resultValue = new Value($this->methodInfo['return']['name'], $result, $this);
+            foreach ($this->methodInfo['return']['validators'] as $type=>$params) {
+                $resultValue = Validator::run($type, $params, $resultValue);
+            }
+            $result = $resultValue->data;
         }
 
         return $result;
@@ -322,9 +323,8 @@ class Controller extends \yii\web\Controller
         $variableRegex = '\$([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)';
 
         $infoTpl = [
-            'type' => '',
-            'isNullable' => false,
-            'restrictions' => [],
+            'name' => '',
+            'validators' => [],
         ];
 
         $this->methodInfo = [
@@ -339,35 +339,54 @@ class Controller extends \yii\web\Controller
                 $subject = &$this->methodInfo['params'][$paramMatches[2]];
                 $subject = $infoTpl;
                 $subject['name'] = $paramMatches[2];
-                $subject['type'] = $paramMatches[1];
+                $subject['validators']['var'] = $paramMatches[1];
+                continue;
             } else {
                 preg_match("/@return\s+([\w\\\\\[\]]+)/", $lines[$i], $paramMatches);
                 if (!empty($paramMatches)) {
                     $subject = &$this->methodInfo['return'];
                     $subject = $infoTpl;
-                    $subject['type'] = $paramMatches[1];
+                    $subject['name'] = "result";
+                    $subject['validators']['var'] = $paramMatches[1];
+                    continue;
                 }
             }
-            if (!empty($subject)) {
-
-                //search in two next lines for @null or @inArray tags
-                for ($j=0; $j<2; $j++) {
-                    preg_match("/@(null|inArray(\[(.*)\]))/", $lines[$i+1], $tagMatches);
-                    if (empty($tagMatches)) break;
-
-                    if (strpos($tagMatches[0], "@inArray") === 0 && in_array($subject['type'], ['string', 'int'])) {
-                        eval("\$parsedData = {$tagMatches[2]};");
-                        if (!is_array($parsedData))
-                            throw new Exception(sprintf("Invalid syntax in %s in tag @inArray{$tagMatches[2]}", get_class($this)), Exception::INTERNAL_ERROR);
-                        $subject['restrictions'] = $parsedData;
-                    } elseif (strpos($tagMatches[0], "@null") === 0) {
-                        $subject['isNullable'] = true;
-                    }
-
-                    $i++;
-                }
+            preg_match("/@([\w]+)[ ]?(.*)/", $lines[$i], $validatorMatches);
+            if (!empty($subject) && !empty($validatorMatches)) {
+                $subject['validators'][$validatorMatches[1]] = trim($validatorMatches[2]);
             }
-            unset($subject);
         }
+    }
+
+    /** @var array Use as 'result' when method returns null */
+    private static $defaultResult = [
+        "success" => true
+    ];
+
+    /**
+     * Formats and returns
+     * @param null $result
+     * @param \JsonRpc2\Exception|null $error
+     * @param null $id
+     * @return array
+     */
+    public function formatResponse($result = null, Exception $error = null, $id = null)
+    {
+        $resultKey = 'result';
+
+        if (!empty($error)) {
+            $resultKey = 'error';
+            $resultValue = $error->toArray();
+        }
+        else if (null === $result)
+            $resultValue = self::$defaultResult;
+        else
+            $resultValue = $result;
+
+        return [
+            'jsonrpc' => '2.0',
+            $resultKey => $resultValue,
+            'id' => $id,
+        ];
     }
 }

@@ -17,11 +17,16 @@ class Exception extends \yii\base\Exception
         parent::__construct($message, $code);
     }
 
+    public function getData()
+    {
+        return $this->data;
+    }
+
     public function toArray() {
         return [
             "code" 	   => $this->getCode(),
             "message"  => $this->getMessage(),
-			"data"     => $this->data,
+            "data"     => $this->getData(),
         ];
     }
 }

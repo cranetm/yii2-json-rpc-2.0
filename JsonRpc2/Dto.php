@@ -2,6 +2,7 @@
 namespace JsonRpc2;
 
 
+use JsonRpc2\Validator\Value;
 use ReflectionProperty;
 
 class Dto {
@@ -15,29 +16,12 @@ class Dto {
         foreach (get_object_vars($this) as $name=>$defaultValue) {
             $property = new ReflectionProperty(get_class($this), $name);
             if (!$property->isPublic()) continue;
-
-            preg_match("/@var[ ]+([\w\\\\\[\]]+)/", $property->getDocComment(), $matches);
-            $type = !empty($matches) ? $matches[1] : false;
-            if (empty($type)) continue;
-
-            preg_match("/@null/", $property->getDocComment(), $matches);
-            $isNullable = !empty($matches);
-
-            preg_match("/@required/", $property->getDocComment(), $matches);
-            $isRequired = !empty($matches);
-
-            $restrictions = [];
-            preg_match("/@(inArray(\[(.*)\]))/", $property->getDocComment(), $matches);
-            if (!empty($matches) && in_array($type, ['string', 'int'])) {
-                eval("\$parsedData = {$matches[2]};");
-                if (!is_array($parsedData))
-                    throw new Exception(get_class($this).": Invalid syntax in {$name} tag @inArray{$matches[2]}", Exception::INTERNAL_ERROR);
-                $restrictions = $parsedData;
+            preg_match_all("/@([\w]+)[ ]?(.*)/", $property->getDocComment(), $matches);
+            $propValue = new Value($name, isset($data[$name]) ? $data[$name] : $defaultValue, $this);
+            foreach ($matches[1] as $key=>$value) {
+                $propValue = Validator::run($matches[1][$key], trim($matches[2][$key]), $propValue);
             }
-
-            if ($isRequired && !isset($data[$name]))
-                throw new Exception("Field {$name} is required", Exception::INVALID_PARAMS);
-            $this->$name = Helper::bringValueToType($this, $type, isset($data[$name]) ? $data[$name] : $defaultValue, $isNullable, $restrictions);
+            $this->$name = $propValue->data;
         }
     }
 }
