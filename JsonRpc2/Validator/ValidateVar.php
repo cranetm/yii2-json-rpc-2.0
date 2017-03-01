@@ -13,7 +13,14 @@ class ValidateVar extends JsonRpc2\Validator
      */
     protected function validate()
     {
-        $this->value->data = $this->bringValueToType($this->value->parent, trim($this->params), $this->value->data);
+        foreach (explode('|', $this->params) as $type) {
+            try {
+                $this->value->data = $this->bringValueToType($this->value->parent, $type, $this->value->data);
+                return;
+            } catch (Exception $e) {
+            }
+        }
+        throw $e;
     }
 
     /**
