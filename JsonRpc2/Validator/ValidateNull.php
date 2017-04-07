@@ -14,7 +14,7 @@ class ValidateNull extends JsonRpc2\Validator
     protected function validate()
     {
         throw new Exception(
-            \Yii::t('yii',
+            \Yii::t('jsonrpc',
                 '@Null for {valueName} is deprecated. All values can be NULL by default. Please use @NotNull for required properties.',
                 ['valueName' => $this->value->getFullName()]
             ),

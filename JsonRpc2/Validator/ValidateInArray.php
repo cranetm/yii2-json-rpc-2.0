@@ -19,7 +19,7 @@ class ValidateInArray extends JsonRpc2\Validator
             eval("\$restrictions = {$matches[1]};");
             if (!is_array($restrictions))
                 throw new Exception(
-                    \Yii::t('yii', "{className}: Invalid syntax in {valueName} tag @inArray{restrictions}",
+                    \Yii::t('jsonrpc', "{className}: Invalid syntax in {valueName} tag @inArray{restrictions}",
                         [
                             'className' => get_class($this->value->parent),
                             'valueName' => $this->value->getFullName(),
@@ -30,7 +30,7 @@ class ValidateInArray extends JsonRpc2\Validator
 
             if (!empty($restrictions) && !in_array($this->value->data, $restrictions))
                 $this->throwError(
-                    \Yii::t('yii', "Value '{valueData}' is not allowed for {valueName}. Allowed values is '{restrictions}'",
+                    \Yii::t('jsonrpc', "Value '{valueData}' is not allowed for {valueName}. Allowed values is '{restrictions}'",
                     [
                         'valueName' => $this->value->getFullName(),
                         'valueData' => $this->value->data,
