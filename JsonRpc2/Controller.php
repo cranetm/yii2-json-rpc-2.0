@@ -16,6 +16,8 @@ class Controller extends \yii\web\Controller
 {
     public $enableCsrfValidation = false;
 
+    public $enableResponseValidation = false;
+
     /** @var array Stores information about param's types and method's return type */
     private $methodInfo = [
         'params' => [],
@@ -93,7 +95,7 @@ class Controller extends \yii\web\Controller
             ob_start();
             $dirtyResult = parent::runAction($this->requestObject->method);
             ob_clean();
-            $result = $this->validateResult($dirtyResult);
+            $result = $this->enableResponseValidation ? $this->validateResult($dirtyResult) : $dirtyResult;
         } catch (HttpException $e) {
             throw $e;
         } catch (Exception $e) {
