@@ -18,6 +18,11 @@ class Controller extends \yii\web\Controller
 
     public $enableResponseValidation = false;
 
+    /**
+     * @var string
+     */
+    public $inlineActionClass = InlineAction::class;
+
     /** @var array Stores information about param's types and method's return type */
     private $methodInfo = [
         'params' => [],
@@ -127,10 +132,29 @@ class Controller extends \yii\web\Controller
      */
     public function createAction($id)
     {
-        $action = parent::createAction($id);
+        if ($id === '') {
+            $id = $this->defaultAction;
+        }
+
+        $action = null;
+        $actionMap = $this->actions();
+        if (isset($actionMap[$id])) {
+            $action = Yii::createObject($actionMap[$id], [$id, $this]);
+        } elseif (preg_match('/^[a-z0-9\\-_]+$/', $id) && strpos($id, '--') === false && trim($id, '-') === $id) {
+            $methodName = 'action' . str_replace(' ', '', ucwords(implode(' ', explode('-', $id))));
+            if (method_exists($this, $methodName)) {
+                $method = new \ReflectionMethod($this, $methodName);
+                if ($method->isPublic() && $method->getName() === $methodName) {
+                    // need to check some information
+                    $action = new $this->inlineActionClass($id, $this, $methodName);
+                }
+            }
+        }
+
         if (empty($action))
             throw new Exception(Yii::t('jsonrpc', 'Method not found').' '.$id, Exception::METHOD_NOT_FOUND);
 
+        /** @var \yii\base\Action $action */
         $this->prepareActionParams($action);
 
         return $action;
