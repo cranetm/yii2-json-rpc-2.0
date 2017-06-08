@@ -6,6 +6,7 @@ use JsonRpc2\Validator\Value;
 use Yii;
 use yii\base\InlineAction;
 use yii\base\InvalidParamException;
+use yii\helpers\ArrayHelper;
 use yii\helpers\Json;
 use yii\web\BadRequestHttpException;
 use yii\web\HttpException;
@@ -15,6 +16,13 @@ class Controller extends \yii\web\Controller
 {
     public $enableCsrfValidation = false;
 
+    public $enableResponseValidation = false;
+
+    /**
+     * @var string
+     */
+    public $inlineActionClass = InlineAction::class;
+
     /** @var array Stores information about param's types and method's return type */
     private $methodInfo = [
         'params' => [],
@@ -23,6 +31,20 @@ class Controller extends \yii\web\Controller
 
     /** @var \stdClass Contains parsed JSON-RPC 2.0 request object*/
     protected $requestObject;
+
+    public function init()
+    {
+        parent::init();
+
+        Yii::$app->i18n->translations['jsonrpc'] = ArrayHelper::merge(
+            [
+                'class' => 'yii\i18n\PhpMessageSource',
+                'basePath' => __DIR__. '/../messages',
+                'sourceLanguage' => 'en',
+            ],
+            Yii::$app->i18n->translations['jsonrpc'] ?? []
+        );
+    }
 
     public function actionIndex (){}
 
@@ -49,7 +71,7 @@ class Controller extends \yii\web\Controller
         $resultData = null;
         if (empty($requests)) {
             $isBatch = false;
-            $resultData = [$this->formatResponse(null, new Exception(Yii::t('yii', 'Invalid Request'), Exception::INVALID_REQUEST))];
+            $resultData = [$this->formatResponse(null, new Exception(Yii::t('jsonrpc', 'Invalid Request'), Exception::INVALID_REQUEST))];
         } else {
             foreach ($requests as $request) {
                 if($response = $this->getActionResponse($request))
@@ -78,7 +100,7 @@ class Controller extends \yii\web\Controller
             ob_start();
             $dirtyResult = parent::runAction($this->requestObject->method);
             ob_clean();
-            $result = $this->validateResult($dirtyResult);
+            $result = $this->enableResponseValidation ? $this->validateResult($dirtyResult) : $dirtyResult;
         } catch (HttpException $e) {
             throw $e;
         } catch (Exception $e) {
@@ -88,7 +110,7 @@ class Controller extends \yii\web\Controller
                 $error = $e;
             }
         } catch (\Exception $e) {
-            $error = new Exception(Yii::t('yii', 'Internal error'), Exception::INTERNAL_ERROR);
+            $error = new Exception(Yii::t('jsonrpc', 'Internal error'), Exception::INTERNAL_ERROR);
         }
 
         if (!isset($this->requestObject->id) && (empty($error) || !in_array($error->getCode(), [Exception::PARSE_ERROR, Exception::INVALID_REQUEST])))
@@ -110,10 +132,29 @@ class Controller extends \yii\web\Controller
      */
     public function createAction($id)
     {
-        $action = parent::createAction($id);
-        if (empty($action))
-            throw new Exception(Yii::t('yii', 'Method not found').' '.$id, Exception::METHOD_NOT_FOUND);
+        if ($id === '') {
+            $id = $this->defaultAction;
+        }
 
+        $action = null;
+        $actionMap = $this->actions();
+        if (isset($actionMap[$id])) {
+            $action = Yii::createObject($actionMap[$id], [$id, $this]);
+        } elseif (preg_match('/^[a-z0-9\\-_]+$/', $id) && strpos($id, '--') === false && trim($id, '-') === $id) {
+            $methodName = 'action' . str_replace(' ', '', ucwords(implode(' ', explode('-', $id))));
+            if (method_exists($this, $methodName)) {
+                $method = new \ReflectionMethod($this, $methodName);
+                if ($method->isPublic() && $method->getName() === $methodName) {
+                    // need to check some information
+                    $action = new $this->inlineActionClass($id, $this, $methodName);
+                }
+            }
+        }
+
+        if (empty($action))
+            throw new Exception(Yii::t('jsonrpc', 'Method not found').' '.$id, Exception::METHOD_NOT_FOUND);
+
+        /** @var \yii\base\Action $action */
         $this->prepareActionParams($action);
 
         return $action;
@@ -155,7 +196,7 @@ class Controller extends \yii\web\Controller
                     } elseif (!is_array($params->$name)) {
                         $args[] = $actionParams[$name] = $params->$name;
                     } else {
-                        throw new Exception(Yii::t('yii', 'Invalid data received for parameter "{param}".', [
+                        throw new Exception(Yii::t('jsonrpc', 'Invalid data received for parameter "{param}".', [
                             'param' => $name,
                         ]), Exception::INVALID_REQUEST);
                     }
@@ -168,7 +209,7 @@ class Controller extends \yii\web\Controller
             }
 
             if (!empty($missing)) {
-                throw new Exception(Yii::t('yii', 'Missing required parameters: {params}', [
+                throw new Exception(Yii::t('jsonrpc', 'Missing required parameters: {params}', [
                     'params' => implode(', ', $missing),
                 ]), Exception::INVALID_REQUEST);
             }
@@ -216,13 +257,13 @@ class Controller extends \yii\web\Controller
     private function parseAndValidateRequestObject($requestObject)
     {
         if (null === $requestObject)
-            throw new Exception(Yii::t('yii', 'Parse error'), Exception::PARSE_ERROR);
+            throw new Exception(Yii::t('jsonrpc', 'Parse error'), Exception::PARSE_ERROR);
 
         if (!is_object($requestObject)
             || !isset($requestObject->jsonrpc) || $requestObject->jsonrpc !== '2.0'
             || empty($requestObject->method) || "string" != gettype($requestObject->method)
         )
-            throw new Exception(Yii::t('yii', 'Invalid Request'), Exception::INVALID_REQUEST);
+            throw new Exception(Yii::t('jsonrpc', 'Invalid Request'), Exception::INVALID_REQUEST);
 
         $this->requestObject = $requestObject;
         if (!isset($this->requestObject->params))

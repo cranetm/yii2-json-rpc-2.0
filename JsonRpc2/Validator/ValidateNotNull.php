@@ -15,7 +15,7 @@ class ValidateNotNull extends JsonRpc2\Validator
     {
         if (null === $this->value->data)
             $this->throwError(
-                \Yii::t('yii', "{valueName} is required and cannot be Null.", ['valueName' => $this->value->getFullName()])
+                \Yii::t('jsonrpc', "{valueName} is required and cannot be Null.", ['valueName' => $this->value->getFullName()])
             );
     }
 }

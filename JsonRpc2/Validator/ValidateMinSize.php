@@ -21,7 +21,7 @@ class ValidateMinSize extends JsonRpc2\Validator
             || in_array($type, ["integer", "double", "float"]) && $this->value->data < $minSize
         ) {
             $this->throwError(
-                \Yii::t('yii', 'For {valueName} allowed min size is {minSize}',
+                \Yii::t('jsonrpc', 'For {valueName} allowed min size is {minSize}',
                     ['valueName' => $this->value->getFullName(), 'minSize' => $minSize]
                 )
             );

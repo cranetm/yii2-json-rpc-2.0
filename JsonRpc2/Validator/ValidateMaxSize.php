@@ -20,7 +20,7 @@ class ValidateMaxSize extends JsonRpc2\Validator
             || in_array($type, ["integer", "double", "float"]) && $this->value->data > $maxSize
         ) {
             $this->throwError(
-                \Yii::t('yii', 'For {valueName} allowed max size is {maxSize}',
+                \Yii::t('jsonrpc', 'For {valueName} allowed max size is {maxSize}',
                     ['valueName' => $this->value->getFullName(), 'maxSize' => $maxSize]
                 )
             );

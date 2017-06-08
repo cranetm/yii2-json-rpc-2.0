@@ -13,7 +13,14 @@ class ValidateVar extends JsonRpc2\Validator
      */
     protected function validate()
     {
-        $this->value->data = $this->bringValueToType($this->value->parent, trim($this->params), $this->value->data);
+        foreach (explode('|', $this->params) as $type) {
+            try {
+                $this->value->data = $this->bringValueToType($this->value->parent, $type, $this->value->data);
+                return;
+            } catch (Exception $e) {
+            }
+        }
+        throw $e;
     }
 
     /**
@@ -33,7 +40,7 @@ class ValidateVar extends JsonRpc2\Validator
         $singleType = current($typeParts);
         if (count($typeParts) > 2)
             throw new Exception(
-                \Yii::t('yii', 'In {className} type \'{type}\' is invalid',
+                \Yii::t('jsonrpc', 'In {className} type \'{type}\' is invalid',
                     ['className' => get_class($parent), 'type' => $type]
                 ),
                 Exception::INTERNAL_ERROR
@@ -44,13 +51,13 @@ class ValidateVar extends JsonRpc2\Validator
             if (!is_array($value)) {
                 if ($parent instanceof \JsonRpc2\Dto)
                     throw new Exception(
-                        \Yii::t('yii', 'In {className} value has type \'{type}\', but array expected',
+                        \Yii::t('jsonrpc', 'In {className} value has type \'{type}\', but array expected',
                             ['className' => get_class($parent), 'type' => gettype($value)]
                         ),
                         Exception::INTERNAL_ERROR
                     );
                 else
-                    throw new Exception(\Yii::t('yii', 'Value has type \'{type}\', but array expected', ['type' => gettype($value)]), Exception::INTERNAL_ERROR);
+                    throw new Exception(\Yii::t('jsonrpc', 'Value has type \'{type}\', but array expected', ['type' => gettype($value)]), Exception::INTERNAL_ERROR);
             }
 
             foreach ($value as $key=>$childValue) {
@@ -66,7 +73,7 @@ class ValidateVar extends JsonRpc2\Validator
         if (class_exists($type)) {
             if (!is_subclass_of($type, '\\JsonRpc2\\Dto'))
                 throw new Exception(
-                    \Yii::t('yii', 'In {className} class \'{type}\' MUST be instance of \'\\JsonRpc2\\Dto\'',
+                    \Yii::t('jsonrpc', 'In {className} class \'{type}\' MUST be instance of \'\\JsonRpc2\\Dto\'',
                         ['className' => get_class($parent), 'type' => $type]
                     ),
                     Exception::INTERNAL_ERROR
@@ -86,7 +93,7 @@ class ValidateVar extends JsonRpc2\Validator
                     return (float)$value;
                 case "array":
                     throw new Exception(
-                        \Yii::t('yii', 'Parameter type \'array\' is deprecated. Use square brackets with simply types or DTO based classes instead.'),
+                        \Yii::t('jsonrpc', 'Parameter type \'array\' is deprecated. Use square brackets with simply types or DTO based classes instead.'),
                         Exception::INTERNAL_ERROR
                     );
                 case "bool":
