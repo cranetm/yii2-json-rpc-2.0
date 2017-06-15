@@ -14,10 +14,9 @@ class Exception extends \yii\base\Exception
     const PERMISSION_DENIED_ERROR = -32002;
     const ALREADY_EXECUTE_ERROR = -32003;
 
-    private $data = null;
 
     /**
-     * @var Error[]
+     * @var array|\common\components\Error|\common\components\Error[]|null
      */
     private $_errors = array();
 
@@ -25,28 +24,21 @@ class Exception extends \yii\base\Exception
     protected $httpCode = 200;
     protected $message = 'Internal error';
 
-
     /**
-     * @param Error|Error[] $error
-     * @throws
+     * Exception constructor.
+     * @param string|array|\common\components\Error|\common\components\Error[]|null $error
+     * @param null $code
      */
-    public function __construct($error = null)
+    public function __construct($error = null, $code = null)
     {
+        if (is_null($code)) {
+            $code = $this->code;
+        }
         if (!is_null($error) && !is_array($error)) {
             $error = array($error);
         }
         $this->_errors = $error;
-        parent::__construct($this->message, $this->getRPCCode());
-    }
-
-    public function getRPCCode()
-    {
-        return $this->code;
-    }
-
-    public function getHTTPStatusCode()
-    {
-        return $this->httpCode;
+        parent::__construct($this->message, $code);
     }
 
     /**
@@ -59,13 +51,24 @@ class Exception extends \yii\base\Exception
         }
         $errorData = [];
         foreach ($this->_errors as $error) {
-            $error = array(
+            if (!($error instanceof \common\components\Error)) {
+                $newError = new \common\components\Error(
+                    \common\components\Code::C_EXCEPTION_MESSAGE,
+                    null,
+                    ['{message}' => $error]);
+                $newError->setCode($this->getCode());
+                $error = $newError;
+            }
+
+            $error = [
                 'code' => $error->getCode(),
                 'attribute' => $error->getAttribute(),
                 'message' => $error->getMessage(),
                 'tpl' => $error->getTpl(),
                 'tplParams' => $error->getTplParams(true),
-            );
+            ];
+
+
             $errorData[] = $error;
         }
         return $errorData;
