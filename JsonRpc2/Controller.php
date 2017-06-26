@@ -40,7 +40,8 @@ class Controller extends \yii\web\Controller
         $this->initRequest($id);
 
         try {
-            $requestObject = Json::decode(file_get_contents('php://input'), false);
+            $request = Yii::$app->request;
+            $requestObject =  Json::decode($request->isPost ? Yii::$app->request->rawBody : "php://input", false);
         } catch (InvalidParamException $e) {
             $requestObject = null;
         }
