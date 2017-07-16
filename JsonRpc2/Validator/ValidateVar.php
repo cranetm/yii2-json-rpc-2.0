@@ -73,22 +73,18 @@ class ValidateVar extends JsonRpc2\Validator
                 );
             return new $type($value);
         } else {
-            if (is_array($value) || $value instanceof \stdClass) {
-                $value = 0;
-            }
             switch ($type) {
                 case "string":
                     return (string)$value;
                 case "int":
                     return (int)$value;
                 case "float":
-                case "double":
                     return (float)$value;
+                case "double":
+                    return (double)$value;
+                case "mixed":
                 case "array":
-                    throw new Exception(
-                        \Yii::t('yii', 'Parameter type \'array\' is deprecated. Use square brackets with simply types or DTO based classes instead.'),
-                        Exception::INTERNAL_ERROR
-                    );
+                    return (array)$value;
                 case "bool":
                     return (bool)$value;
             }
