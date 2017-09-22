@@ -205,7 +205,7 @@ class Controller extends \yii\web\Controller
             }
         }
         // call beforeAction on controller
-        $this->beforeAction($action);
+        //$this->beforeAction($action);
     }
 
     /**
