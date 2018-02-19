@@ -65,6 +65,21 @@ class Controller extends \yii\web\Controller
     }
 
     /**
+     * Isolates the runAction method, which calls the parent's runAction
+     * implementation, in order to make it overridable by child classes. 
+     * This is neccessary, for example, to catch certain classes of exceptions
+     * before they are caught by the private getActionResponse() method which
+     * cannot be overridden (BTW, does it have to be private?)
+     *
+     * @param string $method
+     * @return mixed
+     */
+    protected function _runAction($method)
+    {
+      return parent::runAction($method);
+    }
+
+    /**
      * Runs and returns method response
      * @param $requestObject
      * @throws \Exception
@@ -77,7 +92,7 @@ class Controller extends \yii\web\Controller
         try {
             $this->parseAndValidateRequestObject($requestObject);
             ob_start();
-            $dirtyResult = parent::runAction($this->requestObject->method);
+            $dirtyResult = $this->_runAction($this->requestObject->method);
             ob_clean();
             $result = $this->validateResult($dirtyResult);
         } catch (HttpException $e) {
