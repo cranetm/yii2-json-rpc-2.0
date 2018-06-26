@@ -88,7 +88,7 @@ class Controller extends \yii\web\Controller
                 $error = $e;
             }
         } catch (\Exception $e) {
-            $error = new Exception(Yii::t('yii', 'Internal error'), Exception::INTERNAL_ERROR);
+            $error = new Exception(Yii::t('yii', 'Internal error'), Exception::INTERNAL_ERROR, null, $e);
         }
 
         if (!isset($this->requestObject->id) && (empty($error) || !in_array($error->getCode(), [Exception::PARSE_ERROR, Exception::INVALID_REQUEST])))
@@ -373,7 +373,9 @@ class Controller extends \yii\web\Controller
         ];
 
         if (!empty($error)) {
-            \Yii::error($error, 'jsonrpc');
+            if ($error->getCode() === Exception::INTERNAL_ERROR) {
+                \Yii::error($error->getPrevious() ?: $error, 'jsonrpc');
+            }
             $resultArray['error'] = $error->toArray();
         } else {
             $resultArray['result'] = $result;
