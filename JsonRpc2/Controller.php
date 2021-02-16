@@ -195,17 +195,6 @@ class Controller extends \yii\web\Controller
         ) {
             throw new HttpException(404, "Page not found");
         }
-
-        //Call beforeActions on modules and controller to run all filters in behaviors() methods
-        $action = parent::createAction('');
-        // call beforeAction on modules
-        foreach ($this->getModules() as $module) {
-            if (!$module->beforeAction($action)) {
-                break;
-            }
-        }
-        // call beforeAction on controller
-        $this->beforeAction($action);
     }
 
     /**
